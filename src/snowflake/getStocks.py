@@ -1,7 +1,7 @@
 # import snowflake.connector
 import snowflake.connector
 import pandas as pd
-from credentials import load_credentials
+from snowflake.credentials import load_credentials
 
 print(snowflake.connector.__version__)
 
