@@ -1,14 +1,21 @@
 import { exec } from "child_process";
+import Property from "../models/Property.js";
+import Holding from "../models/Holding.js";
+import Router from "express";
 
+const router = Router();
+
+// POST /properties/purchase - Purchase shares of a property
 router.post("/purchase", async (req, res) => {
   const { userId, propertyId, sharesToBuy, isResident } = req.body;
 
   try {
     const prop = await Property.findById(propertyId);
-    
+    if (!prop) return res.status(404).json({ error: "Property not found" });
+
     // 1. Availability Check
     if (prop.availableShares < sharesToBuy) {
-      return res.status(400).json({ error: "Not enough shares available" });
+      return res.status(400).json({ error: "Insufficient community equity available" });
     }
 
     // 2. Conditional Cap Logic
@@ -31,43 +38,11 @@ router.post("/purchase", async (req, res) => {
 
     res.json({ 
       message: "Purchase successful", 
-      newEquityTotal: sharesToBuy,
-      isResidentMajority: isResident 
+      remainingPool: prop.availableShares,
+      sharesOwned: sharesToBuy
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /properties/purchase
-router.post("/purchase", async (req, res) => {
-  const { userId, propertyId, sharesToBuy, isResident } = req.body;
-
-  try {
-    const prop = await Property.findById(propertyId);
-    if (!prop) return res.status(404).json({ error: "Property not found" });
-
-    // Ensure investors don't eat into the resident's 51% minimum stake
-    // availableShares should represent the 49% community pool
-    if (prop.availableShares < sharesToBuy) {
-      return res.status(400).json({ error: "Insufficient community equity available" });
-    }
-
-    // Process purchase
-    prop.availableShares -= sharesToBuy;
-    if (prop.availableShares === 0) prop.status = "fully_allocated";
-    await prop.save();
-
-    // Record the holding
-    await Holding.updateOne(
-      { userId, propertyId },
-      { $inc: { sharesOwned: sharesToBuy } },
-      { upsert: true }
-    );
-
-    res.json({ message: "Purchase successful", remainingPool: prop.availableShares });
-  } catch (err) {
-    res.status(500).json({ error: "Transaction failed" });
+    res.status(500).json({ error: "Transaction failed", details: err.message });
   }
 });
 
@@ -113,21 +88,29 @@ router.get("/portfolio/:userId", async (req, res) => {
 });
 
 // POST /properties/sync/:propertyId
-router.post("/sync/:propertyId", async (req, res) => {
+router.post("/sync/:id", async (req, res) => {
   try {
-    const prop = await Property.findById(req.params.propertyId);
+    const prop = await Property.findById(req.params.id);
     if (!prop) return res.status(404).json({ error: "Property not found" });
 
-    // Execute the Python 'Oracle' script to fetch latest Snowflake data
-    // In a hackathon, we pass the externalPropertyId to a script that updates the DB
+    // Execute the Python bridge script
     exec(`python3 src/logic/sync_oracle.py ${prop.externalPropertyId}`, async (error, stdout, stderr) => {
-      if (error) return res.status(500).json({ error: "Oracle Sync Failed" });
+      if (error) {
+        console.error(`Exec error: ${error}`);
+        return res.status(500).json({ error: "Oracle Sync Failed" });
+      }
       
-      // Refresh the property data from the updated DB
-      const updatedProp = await Property.findById(req.params.propertyId);
-      res.json({ message: "Market value updated via Snowflake", newValuation: updatedProp.valuation });
+      // Fetch the updated property from Mongo to return the new value
+      const updatedProp = await Property.findById(req.params.id);
+      res.json({ 
+        message: "Valuation synced with Snowflake", 
+        newValuation: updatedProp.valuation,
+        log: stdout 
+      });
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+export default router;

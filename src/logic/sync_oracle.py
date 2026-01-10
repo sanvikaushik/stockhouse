@@ -27,8 +27,7 @@ def sync_property_valuation(property_id):
         new_valuation = float(df.iloc[0]['ESTIMATED_VALUE'])
 
         # 3. Update MongoDB (Using your DB connection string)
-        # Replace 'your_mongodb_uri' with your actual connection string
-        client = MongoClient('your_mongodb_uri')
+        client = MongoClient('mongodb+srv://sanvikaushik22_db_user:3H5SsuYHtIqhfgeC@cluster0.m8tx6vb.mongodb.net/?appName=Cluster0')
         db = client['stockhouse'] # Your database name
         
         result = db.properties.update_one(
