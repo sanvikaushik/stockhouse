@@ -1,0 +1,7 @@
+.venv1
+.venv
+
+# credentials
+credentials.txt
+
+__pycache__/
