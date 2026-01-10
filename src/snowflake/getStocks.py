@@ -48,6 +48,9 @@ ingest_url = 'http://localhost:3001/properties/ingest'
 # convert dataframe to list of dicts for JSON serialization
 rows = df.to_dict(orient='records')
 
+# truncate to at most 100 rows to avoid large payloads / 413 errors
+rows = rows[:100]
+
 # prepare payload (users decide quantity at listed stock_price)
 payload = {'rows': rows}
 
