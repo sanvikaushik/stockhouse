@@ -3,11 +3,22 @@ import pandas as pd
 from snowflake.credentials import load_credentials
 from models.property import PropertyAgreement
 
+"""
+What It Does:
+Connects to Snowflake - Uses credentials to establish a secure database connection
+
+Fetches Property Data - Queries the SECURE_SAMPLE_US_NATIONAL_SOLD table for a specific property by ID...Snowflake's real estate dataset with property valuations
+
+Calculates Monthly Mortgage - Uses a simple formula: estimated_mortgage = property_value × 0.005 (0.5% of value)
+    - SHOULD WE CHANGE HOW WE CALCULATE THE MORTGAGE??
+
+Instantiates PropertyAgreement - Creates a property object using your equity engine by passing: Property address, Total property value, Monthly mortgage, Primary occupant ID
+
+Error Handling - Returns None if property not found, closes connection safely
+"""
+
 def fetch_property_from_snowflake(target_property_id: str, occupant_id: str):
-    """
-    Connects to Snowflake, retrieves specific property data, and returns an initialized 
-    PropertyAgreement.
-    """
+
     creds = load_credentials()
     conn = snowflake.connector.connect(**creds)
     
