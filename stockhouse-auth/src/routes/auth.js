@@ -55,7 +55,7 @@ router.post("/login", async (req, res) => {
     user.lastLoginAt = new Date();
     await user.save();
 
-    return res.json({ token, userId: user._id });
+    return res.json({ token, userId: user._id, userType: user.userType });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Login failed" });

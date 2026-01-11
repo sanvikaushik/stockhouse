@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investments - StockHouse</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        /* CSS VARIABLES */
+        :root {
+            --primary: #0F172A;
+            --secondary: #1E293B;
+            --accent: #3B82F6;
+            --accent-hover: #2563EB;
+            --text-primary: #F8FAFC;
+            --text-secondary: #CBD5E1;
+            --success: #10B981;
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        /* GLOBAL STYLES */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        .container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+
+        /* HEADER & NAV */
+        header {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; }
+
+        .logo { display: flex; align-items: center; gap: 12px; font-size: 24px; font-weight: 800; cursor: pointer; }
+        .logo-icon { width: 40px; height: 40px; background: var(--gradient-1); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+
+        .nav-links { display: flex; gap: 48px; list-style: none; align-items: center; }
+        .nav-links a { color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 15px; transition: color 0.3s; position: relative; }
+        .nav-links a:hover { color: var(--text-primary); }
+        .nav-links a::after { content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 2px; background: var(--accent); transition: width 0.3s; }
+        .nav-links a:hover::after { width: 100%; }
+
+        /* BUTTONS */
+        .btn { padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; transition: all 0.3s; display: inline-block; border: none; cursor: pointer; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3); }
+        .btn-secondary { background: transparent; color: var(--text-primary); border: 2px solid var(--accent); }
+        .btn-secondary:hover { background: var(--accent); }
+
+        /* INVESTMENT CARD STYLES */
+        .investment-card { background: var(--secondary); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 32px; transition: all 0.3s; }
+        .investment-card:hover { transform: translateY(-4px); border-color: rgba(59, 130, 246, 0.3); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
+        .investment-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px; }
+        .investment-address { font-size: 20px; font-weight: 700; }
+        .investment-status { background: rgba(16, 185, 129, 0.1); color: var(--success); padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+        .investment-location { color: var(--text-secondary); font-size: 14px; margin-bottom: 20px; }
+        .investment-details { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+        .detail-item { }
+        .detail-label { color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .detail-value { font-size: 20px; font-weight: 700; }
+        .investment-progress { margin-bottom: 20px; }
+        .progress-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
+        .progress-bar { width: 100%; height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--gradient-1); transition: width 0.3s; }
+        .shares-input-section { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .shares-input-group { }
+        .shares-input-group label { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; font-weight: 600; }
+        .shares-input-group input { width: 100%; padding: 10px; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: var(--text-primary); font-size: 14px; font-weight: 600; }
+        .shares-input-group input:focus { outline: none; border-color: var(--accent); background: rgba(255, 255, 255, 0.08); }
+        .input-validation { font-size: 11px; color: var(--text-secondary); margin-top: 4px; display: flex; justify-content: space-between; }
+        .validation-error { color: #ef4444; }
+        .validation-success { color: var(--success); }
+        .calculation-display { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 13px; }
+        .calc-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .calc-row:last-child { margin-bottom: 0; font-weight: 700; color: var(--accent); }
+        .calc-label { color: var(--text-secondary); }
+        .buy-btn { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .buy-btn:hover { background: var(--accent-hover); transform: translateY(-2px); }
+        .buy-btn:disabled { background: rgba(59, 130, 246, 0.3); cursor: not-allowed; transform: none; }
+        .error-message { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 16px; }
+
+        /* MAIN CONTENT */
+        main { padding: 140px 0 60px; min-height: 100vh; }
+
+        .section-header { max-width: 700px; margin: 0 auto 80px; text-align: center; }
+        .section-badge { display: inline-block; background: rgba(59, 130, 246, 0.1); color: var(--accent); padding: 6px 16px; border-radius: 50px; font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+        .section-title { font-size: 48px; font-weight: 800; margin-bottom: 16px; line-height: 1.2; }
+        .section-description { font-size: 20px; color: var(--text-secondary); }
+
+        /* TABS */
+        .tabs-container { display: flex; gap: 16px; margin-bottom: 40px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); }
+        .tab-btn { padding: 12px 24px; background: none; border: none; color: var(--text-secondary); font-size: 16px; font-weight: 600; cursor: pointer; position: relative; transition: color 0.3s; }
+        .tab-btn:hover { color: var(--text-primary); }
+        .tab-btn.active { color: var(--accent); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: var(--accent); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* SEARCH BAR */
+        .search-container { margin-bottom: 40px; }
+        .search-container input {
+            width: 100%; padding: 14px 20px; background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(59, 130, 246, 0.3); 
+            border-radius: 12px; color: var(--text-primary); font-size: 16px; transition: all 0.3s;
+        }
+        .search-container input:focus { outline: none; border-color: var(--accent); background: rgba(255, 255, 255, 0.1); }
+
+        /* GRID */
+        .investments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 24px; }
+
+        footer { background: var(--primary); border-top: 1px solid rgba(255, 255, 255, 0.1); padding: 60px 0 40px; margin-top: 120px; }
+        .footer-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 48px; margin-bottom: 48px; }
+        .footer-section h4 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+        .footer-links { list-style: none; }
+        .footer-links li { margin-bottom: 12px; }
+        .footer-links a { color: var(--text-secondary); text-decoration: none; font-size: 14px; transition: color 0.3s; }
+        .footer-links a:hover { color: var(--accent); }
+        .footer-bottom { padding-top: 32px; border-top: 1px solid rgba(255, 255, 255, 0.1); text-align: center; color: var(--text-secondary); font-size: 14px; }
+
+        @media (max-width: 768px) {
+            nav > div:last-child { display: flex !important; gap: 8px; }
+            nav .btn { padding: 8px 16px !important; font-size: 14px; }
+            .nav-links { display: none; }
+            .investments-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo" onclick="window.location.href='index.html'">
+                <div class="logo-icon">🏠</div>
+                <span>StockHouse</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="investments.html">Investments</a></li>
+            </ul>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" onclick="window.location.href='index.html#features'">Learn More</button>
+                <button class="btn btn-secondary" onclick="handleLogout()" id="logoutBtn" style="display: none;">Logout</button>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">Your Portfolio</span>
+                <h2 class="section-title">Manage Your Investments</h2>
+                <p class="section-description">Browse available properties or track your current holdings</p>
+            </div>
+
+            <!-- TABS -->
+            <div class="tabs-container">
+                <button class="tab-btn active" onclick="switchTab('available')">Available Properties</button>
+                <button class="tab-btn" onclick="switchTab('myinvestments')">My Investments</button>
+            </div>
+
+            <!-- AVAILABLE PROPERTIES TAB -->
+            <div id="available" class="tab-content active">
+                <div class="search-container">
+                    <input type="text" id="searchInvestments" placeholder="Search properties by address or city..." 
+                        onkeyup="filterInvestments()">
+                </div>
+
+                <div id="investmentsGrid" class="investments-grid">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- MY INVESTMENTS TAB -->
+            <div id="myinvestments" class="tab-content">
+                <div id="myInvestmentsGrid" class="investments-grid">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section"><h4>Product</h4><ul class="footer-links"><li><a href="#">Features</a></li><li><a href="#">Pricing</a></li><li><a href="#">Security</a></li></ul></div>
+                <div class="footer-section"><h4>Company</h4><ul class="footer-links"><li><a href="#">About Us</a></li><li><a href="#">Careers</a></li><li><a href="#">Blog</a></li></ul></div>
+                <div class="footer-section"><h4>Resources</h4><ul class="footer-links"><li><a href="#">Documentation</a></li><li><a href="#">Help Center</a></li><li><a href="#">API</a></li></ul></div>
+                <div class="footer-section"><h4>Legal</h4><ul class="footer-links"><li><a href="#">Privacy Policy</a></li><li><a href="#">Terms of Service</a></li></ul></div>
+            </div>
+            <div class="footer-bottom"><p>&copy; 2026 StockHouse. All rights reserved.</p></div>
+        </div>
+    </footer>
+
+    <script>
+        const INVESTMENTS_API = 'http://localhost:3001/properties';
+        let investmentProperties = [];
+        let userInvestments = [];
+
+        // Switch between tabs
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            // Load user investments if switching to that tab
+            if (tabName === 'myinvestments') {
+                loadUserInvestments();
+            }
+        }
+
+        // Fetch and display properties
+        async function fetchInvestmentProperties() {
+            try {
+                const response = await fetch(INVESTMENTS_API);
+                if (!response.ok) throw new Error('Failed to fetch properties');
+                investmentProperties = await response.json();
+                renderInvestmentCards();
+            } catch (error) {
+                console.error('Error fetching investments:', error);
+                document.getElementById('investmentsGrid').innerHTML = `
+                    <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: var(--text-secondary);">
+                        ⚠️ Failed to load investments. Make sure backend is running on ${INVESTMENTS_API}
+                    </div>
+                `;
+            }
+        }
+
+        // Render investment cards
+        function renderInvestmentCards() {
+            const grid = document.getElementById('investmentsGrid');
+            if (investmentProperties.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-secondary);">No properties available yet</div>';
+                return;
+            }
+                    const userType = localStorage.getItem('userType')
+                    console.log(userType);
+
+                    grid.innerHTML = investmentProperties.map(prop => {
+                        const availablePercent = (prop.availableShares / prop.totalShares) * 100;
+                        const soldPercent = 100 - availablePercent;
+                        const maxUserCap = prop.perUserShareCap || 200;
+                        const canBuy = prop.availableShares > 0;
+                        const investorAllowed = userType == 'investor';
+
+                        const buySection = canBuy
+                            ? (investorAllowed
+                                ? `
+                                <div class="shares-input-section">
+                                    <div class="shares-input-group">
+                                        <label>Shares to Buy</label>
+                                        <input type="number" id="shares-${prop._id}" min="0" max="${Math.min(prop.availableShares, maxUserCap)}" value="0" 
+                                            oninput="updateInvestmentCalculation('${prop._id}', ${prop.sharePrice}, ${maxUserCap}, ${prop.availableShares})">
+                                        <div class="input-validation">
+                                            <span>Max: ${Math.min(prop.availableShares, maxUserCap)} shares</span>
+                                            <span id="shares-error-${prop._id}" style="color: var(--text-secondary);"></span>
+                                        </div>
+                                    </div>
+                                    <div class="shares-input-group">
+                                        <label>Ownership %</label>
+                                        <div style="padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; font-weight: 600; color: var(--accent);" id="ownership-${prop._id}">0.00%</div>
+                                    </div>
+                                </div>
+
+                                <div class="calculation-display">
+                                    <div class="calc-row">
+                                        <span class="calc-label">Share Price:</span>
+                                        <span>$${Math.round(prop.sharePrice).toLocaleString('en-US')}</span>
+                                    </div>
+                                    <div class="calc-row">
+                                        <span class="calc-label">Quantity:</span>
+                                        <span id="qty-${prop._id}">0 shares</span>
+                                    </div>
+                                    <div class="calc-row">
+                                        <span class="calc-label">Total Cost:</span>
+                                        <span id="total-${prop._id}">$0</span>
+                                    </div>
+                                </div>
+
+                                <button class="buy-btn" id="btn-${prop._id}" onclick="buyShares('${prop._id}', '${prop.address}', ${prop.sharePrice})" disabled>
+                                    Buy Now
+                                </button>
+                                `
+                                : `
+                                <div class="error-message">
+                                    🔒 You must be an investor to purchase shares. Please sign up as an investor.
+                                </div>
+                                `)
+                            : `
+                                <div class="error-message">
+                                    🔒 This property is fully allocated. Check back soon for new opportunities!
+                                </div>
+                            `;
+
+                        return `
+                            <div class="investment-card">
+                                <div class="investment-header">
+                                    <div>
+                                        <div class="investment-address">${prop.address}</div>
+                                        <div class="investment-location">📍 ${prop.city}, ${prop.state || 'N/A'} ${prop.zip || ''}</div>
+                                    </div>
+                                    <div class="investment-status">${canBuy ? '✓ Available' : '⊗ Sold Out'}</div>
+                                </div>
+
+                                <div class="investment-details">
+                                    <div class="detail-item">
+                                        <div class="detail-label">Share Price</div>
+                                        <div class="detail-value">$${Math.round(prop.sharePrice).toLocaleString('en-US')}</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Valuation</div>
+                                        <div class="detail-value">$${Math.round(prop.valuation).toLocaleString('en-US')}</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Available</div>
+                                        <div class="detail-value">${prop.availableShares}/${prop.totalShares}</div>
+                                    </div>
+                                </div>
+
+                                <div class="investment-progress">
+                                    <div class="progress-label">
+                                        <span>Shares Sold</span>
+                                        <span>${soldPercent.toFixed(1)}%</span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: ${soldPercent}%"></div>
+                                    </div>
+                                </div>
+
+                                ${buySection}
+                            </div>
+                        `;
+                    }).join('');
+        }
+
+        // Calculate and display purchase details
+        function updateInvestmentCalculation(propertyId, sharePrice, maxUserCap, availableShares) {
+            const input = document.getElementById(`shares-${propertyId}`);
+            const button = document.getElementById(`btn-${propertyId}`);
+            const ownershipEl = document.getElementById(`ownership-${propertyId}`);
+            const qtyEl = document.getElementById(`qty-${propertyId}`);
+            const totalEl = document.getElementById(`total-${propertyId}`);
+            const errorEl = document.getElementById(`shares-error-${propertyId}`);
+
+            let shareCount = parseInt(input.value) || 0;
+            let errorMsg = '';
+
+            if (shareCount < 0) {
+                shareCount = 0;
+                input.value = 0;
+            }
+
+            if (shareCount > maxUserCap) {
+                shareCount = maxUserCap;
+                input.value = maxUserCap;
+                errorMsg = `Capped at ${maxUserCap}`;
+            }
+
+            if (shareCount > availableShares) {
+                shareCount = availableShares;
+                input.value = availableShares;
+                errorMsg = `Only ${availableShares} available`;
+            }
+
+            const totalCost = shareCount * sharePrice;
+            const ownership = shareCount > 0 ? (shareCount / 10000 * 100).toFixed(2) : 0;
+
+            ownershipEl.textContent = `${ownership}%`;
+            qtyEl.textContent = `${shareCount} shares`;
+            totalEl.textContent = `$${Math.round(totalCost).toLocaleString('en-US')}`;
+            
+            if (errorMsg) {
+                errorEl.innerHTML = `<span class="validation-error">${errorMsg}</span>`;
+            } else if (shareCount > 0) {
+                errorEl.innerHTML = `<span class="validation-success">✓ Ready</span>`;
+            } else {
+                errorEl.textContent = '';
+            }
+
+            button.disabled = shareCount === 0;
+        }
+
+        // Buy shares with confirmation
+        function buyShares(propertyId, address, sharePrice) {
+            const shareCount = parseInt(document.getElementById(`shares-${propertyId}`).value) || 0;
+            if (shareCount === 0) return;
+
+            const totalCost = shareCount * sharePrice;
+            const confirmed = confirm(`Purchase ${shareCount} shares of ${address}?\n\nTotal Cost: $${Math.round(totalCost).toLocaleString('en-US')}`);
+
+            if (confirmed) {
+                alert(`✅ Purchase confirmed! ${shareCount} shares purchased for $${Math.round(totalCost).toLocaleString('en-US')}\n\nTransaction pending...`);
+                document.getElementById(`shares-${propertyId}`).value = 0;
+                updateInvestmentCalculation(propertyId, sharePrice, 200, 10000);
+            }
+        }
+
+        // Buy shares with confirmation
+        function buyShares(propertyId, address, sharePrice) {
+            const shareCount = parseInt(document.getElementById(`shares-${propertyId}`).value) || 0;
+            if (shareCount === 0) return;
+
+            const totalCost = shareCount * sharePrice;
+            const confirmed = confirm(`Purchase ${shareCount} shares of ${address}?\n\nTotal Cost: $${Math.round(totalCost).toLocaleString('en-US')}`);
+
+            if (confirmed) {
+                // Save to database
+                savePurchase(propertyId, address, shareCount, sharePrice, totalCost);
+            }
+        }
+
+        // Save purchase to database
+        async function savePurchase(propertyId, address, shareCount, sharePrice, totalCost) {
+            const userId = localStorage.getItem('userId');
+            const token = localStorage.getItem('authToken');
+            
+            if (!userId) {
+                alert('❌ Please log in to make a purchase');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:3001/properties/buy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        propertyId,
+                        userId,
+                        shareCount,
+                        sharePrice,
+                        totalCost,
+                        address
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Purchase failed');
+                }
+
+                const result = await response.json();
+                alert(`✅ Purchase successful!\n\n${shareCount} shares of ${address} purchased for $${Math.round(totalCost).toLocaleString('en-US')}\n\nTransaction ID: ${result.transactionId || 'pending'}`);
+                
+                // Reset input
+                document.getElementById(`shares-${propertyId}`).value = 0;
+                updateInvestmentCalculation(propertyId, sharePrice, 200, 10000);
+
+                // Update local cached investments for the user so "My Investments" reflects the purchase
+                const updatedInv = result.updatedInvestment;
+                const userKey = `investments_${userId}`;
+                const existing = JSON.parse(localStorage.getItem(userKey) || '[]');
+                const prop = investmentProperties.find(p => String(p._id) === String(propertyId));
+
+                if (updatedInv && prop) {
+                    const holding = {
+                        propertyId: String(updatedInv.propertyId || propertyId),
+                        address: prop.address || address,
+                        city: prop.city || '',
+                        state: prop.state || '',
+                        zip: prop.zip || '',
+                        shareCount: updatedInv.shareCount,
+                        sharePrice: updatedInv.sharePrice,
+                        totalValue: updatedInv.totalCost,
+                        purchaseDate: updatedInv.purchaseDate || new Date(),
+                        ownershipPercent: updatedInv.ownershipPercent
+                    };
+
+                    // Replace or add
+                    const idx = existing.findIndex(h => String(h.propertyId) === String(holding.propertyId));
+                    if (idx > -1) existing[idx] = holding; else existing.push(holding);
+                    localStorage.setItem(userKey, JSON.stringify(existing));
+                }
+
+                // Refresh properties list
+                fetchInvestmentProperties();
+                // Refresh My Investments tab UI
+                loadUserInvestments();
+            } catch (error) {
+                console.error('Purchase error:', error);
+                alert(`❌ Purchase failed: ${error.message}`);
+            }
+        }
+
+        // Load user's investments
+        function loadUserInvestments() {
+            const grid = document.getElementById('myInvestmentsGrid');
+            const userId = localStorage.getItem('userId');
+
+            const userKey = `investments_${userId}`;
+            const saved = localStorage.getItem(userKey);
+            if (!saved) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 60px 40px; color: var(--text-secondary);">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+                        <h3 style="font-size: 24px; color: var(--text-primary); margin-bottom: 12px;">No Investments Yet</h3>
+                        <p>You haven't purchased any shares. Browse available properties in the "Available Properties" tab to get started.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                userInvestments = JSON.parse(saved);
+            } catch (e) {
+                console.error('Failed to parse saved investments', e);
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">Error loading your investments</div>';
+                return;
+            }
+
+            // --- FIXED SECTION BELOW ---
+            grid.innerHTML = userInvestments.map(holding => {
+                return `
+                    <div class="investment-card">
+                        <div class="investment-header">
+                            <div>
+                                <div class="investment-address">${holding.address}</div>
+                                <div class="investment-location">📍 ${holding.city}, ${holding.state}</div>
+                            </div>
+                            <div class="investment-status" style="background: rgba(59, 130, 246, 0.1); color: var(--accent);">
+                                Portfolio Holding
+                            </div>
+                        </div>
+
+                        <div class="investment-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Your Shares</div>
+                                <div class="detail-value">${holding.shareCount}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Total Value</div>
+                                <div class="detail-value">$${Math.round(holding.totalValue).toLocaleString()}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Ownership</div>
+                                <div class="detail-value">${holding.ownershipPercent.toFixed(2)}%</div>
+                            </div>
+                        </div>
+                        
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 10px;">
+                            Purchased on: ${new Date(holding.purchaseDate).toLocaleDateString()}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Check authentication on page load
+        function checkLoginStatus() {
+            const logoutBtn = document.getElementById('logoutBtn');
+            console.log('✅ Loading investments page');
+            
+            // Check if user is logged in to show/hide logout button
+            const token = localStorage.getItem('authToken');
+            if (token && logoutBtn) {
+                logoutBtn.style.display = 'block';
+            }
+            
+            fetchInvestmentProperties();
+        }
+
+        // Logout function
+        function handleLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('userId');
+                alert('Logged out successfully');
+                window.location.href = 'index.html';
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            checkLoginStatus();
+        });
+
+        // Header background on scroll
+        window.addEventListener('scroll', () => {
+            const header = document.querySelector('header');
+            if (window.pageYOffset > 100) {
+                header.style.background = 'rgba(15, 23, 42, 0.95)';
+            } else {
+                header.style.background = 'rgba(15, 23, 42, 0.8)';
+            }
+        });
+    </script>
+</body>
+</html>

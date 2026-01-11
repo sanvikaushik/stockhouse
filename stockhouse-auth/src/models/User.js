@@ -14,6 +14,18 @@ const userSchema = new mongoose.Schema(
     stripeCustomerId: { type: String }, // fill later
 
     lastLoginAt: { type: Date }
+    ,
+    investments: [
+      {
+        propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property' },
+        shareCount: { type: Number, default: 0 },
+        sharePrice: { type: Number, default: 0 },
+        totalCost: { type: Number, default: 0 },
+        purchaseDate: { type: Date },
+        transactionId: { type: String },
+        ownershipPercent: { type: Number, default: 0 }
+      }
+    ]
   },
   { timestamps: true, versionKey: false }
 );

@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import dotenv from "dotenv";
 import { connectDB } from "./db.js";
 
@@ -8,6 +9,9 @@ import propertyRoutes from "./routes/properties.js";
 dotenv.config();
 
 const app = express();
+
+// Enable CORS
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 app.use("/auth", authRoutes);

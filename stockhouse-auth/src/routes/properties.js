@@ -1,8 +1,12 @@
 import express from "express";
 import { exec } from "child_process";
 import Property from "../models/Property.js";
+<<<<<<< HEAD
 import Holding from "../models/Holding.js";
 import Router from "express";
+=======
+import User from "../models/User.js";
+>>>>>>> 6adaef1 (Added the investor content)
 
 const router = Router();
 
@@ -47,6 +51,7 @@ router.post("/purchase", async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 // GET /properties/portfolio/:userId
 router.get("/portfolio/:userId", async (req, res) => {
   try {
@@ -115,3 +120,128 @@ router.post("/sync/:id", async (req, res) => {
 });
 
 export default router;
+=======
+// Handle share purchase
+router.post("/buy", async (req, res) => {
+  try {
+    const { propertyId, userId, shareCount, sharePrice, totalCost, address } = req.body;
+
+    // Validate input
+    if (!propertyId || !userId || !shareCount || !sharePrice) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Find property
+    const property = await Property.findById(propertyId);
+    if (!property) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    // Check availability
+    if (property.availableShares < shareCount) {
+      return res.status(400).json({ error: `Only ${property.availableShares} shares available` });
+    }
+
+    // Check per-user cap
+    const maxUserCap = property.perUserShareCap || 200;
+    if (shareCount > maxUserCap) {
+      return res.status(400).json({ error: `Maximum ${maxUserCap} shares per user` });
+    }
+
+    // Update property - reduce available shares
+    property.availableShares -= shareCount;
+    await property.save();
+
+    // Create transaction record (optional - for audit trail)
+    const transactionId = `txn_${Date.now()}`;
+
+    // Update or insert user's investment record
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if user already has an investment for this property
+    const existing = user.investments.find(inv => String(inv.propertyId) === String(property._id));
+
+    if (existing) {
+      // compute new totals
+      const newShareCount = existing.shareCount + Number(shareCount);
+      const newTotalCost = (existing.totalCost || 0) + Number(totalCost);
+      const newSharePrice = newTotalCost / newShareCount;
+      const ownershipPercent = (newShareCount / (property.totalShares || 10000)) * 100;
+
+      // update the investment subdocument
+      await User.updateOne(
+        { _id: userId, 'investments.propertyId': property._id },
+        {
+          $set: {
+            'investments.$.shareCount': newShareCount,
+            'investments.$.totalCost': newTotalCost,
+            'investments.$.sharePrice': newSharePrice,
+            'investments.$.ownershipPercent': ownershipPercent,
+            'investments.$.purchaseDate': new Date(),
+            'investments.$.transactionId': transactionId
+          }
+        }
+      );
+    } else {
+      const ownershipPercent = (Number(shareCount) / (property.totalShares || 10000)) * 100;
+      await User.updateOne(
+        { _id: userId },
+        {
+          $push: {
+            investments: {
+              propertyId: property._id,
+              shareCount: Number(shareCount),
+              sharePrice: Number(sharePrice),
+              totalCost: Number(totalCost),
+              purchaseDate: new Date(),
+              transactionId,
+              ownershipPercent
+            }
+          }
+        }
+      );
+    }
+
+    // Return updated user investment to frontend
+    const updatedUser = await User.findById(userId).select('investments');
+    const updatedInvestment = updatedUser.investments.find(inv => String(inv.propertyId) === String(property._id));
+
+    res.json({
+      success: true,
+      transactionId,
+      message: `Successfully purchased ${shareCount} shares`,
+      updatedProperty: {
+        id: property._id,
+        availableShares: property.availableShares
+      },
+      updatedInvestment
+    });
+  } catch (error) {
+    console.error("Purchase error:", error);
+    res.status(500).json({ error: "Purchase failed: " + error.message });
+  }
+});
+
+router.delete("/clear", async (req, res) => {
+  try {
+    // This deletes all documents in the Property collection
+    const result = await Property.deleteMany({});
+    
+    console.log(`Database wiped: ${result.deleted_count} properties removed.`);
+    
+    res.json({ 
+      success: true, 
+      message: "All properties cleared successfully",
+      deletedCount: result.deletedCount 
+    });
+  } catch (error) {
+    console.error("Clear error:", error);
+    res.status(500).json({ error: "Failed to clear properties: " + error.message });
+  }
+});
+
+export default router;
+>>>>>>> 6adaef1 (Added the investor content)
