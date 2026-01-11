@@ -448,7 +448,7 @@
 
         // === AUTHENTICATION FUNCTIONS ===
 
-        async function handleLogin(event) {
+                async function handleLogin(event) {
             event.preventDefault();
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
@@ -463,12 +463,9 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    // SAVE TO LOCALSTORAGE
                     localStorage.setItem('authToken', data.token);
                     localStorage.setItem('userId', data.userId);
-                    
-                    // This is the critical fix for your rendering issue:
-                    localStorage.setItem('userType', data.userType || 'investor'); 
+                    localStorage.setItem('userType', data.userType); 
                     
                     alert('Login successful!');
                     window.location.href = 'investments.html';
@@ -477,7 +474,7 @@
                 }
             } catch (err) {
                 console.error('Login error:', err);
-                alert('Server connection failed');
+                alert('Fetch Error: Cannot connect to the server. Is the backend running on port 3001?');
             }
         }
 
@@ -496,9 +493,10 @@
                 const data = await response.json();
 
                 if (response.ok) {
+                    // FIX: Use the token returned by the updated backend
                     localStorage.setItem('authToken', data.token);
                     localStorage.setItem('userId', data.userId);
-                    localStorage.setItem('userType', userDetails.userType); // Save selected type
+                    localStorage.setItem('userType', data.userType); 
                     
                     alert('Account created successfully!');
                     window.location.href = 'investments.html';
@@ -506,7 +504,8 @@
                     alert(data.error || 'Signup failed');
                 }
             } catch (err) {
-                alert('Signup error: ' + err.message);
+                console.error('Signup error:', err);
+                alert('Fetch Error: Cannot connect to the server. Is the backend running on port 3001?');
             }
         }
 

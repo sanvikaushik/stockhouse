@@ -29,7 +29,16 @@ router.post("/signup", async (req, res) => {
       userType: userType || "investor"
     });
 
-    return res.status(201).json({ message: "User created", userId: user._id });
+    // FIX: Generate token immediately so the user is auto-logged in
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+    // FIX: Return the token and userType so the frontend knows who just joined
+    return res.status(201).json({ 
+      message: "User created", 
+      token, 
+      userId: user._id, 
+      userType: user.userType 
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Signup failed" });
