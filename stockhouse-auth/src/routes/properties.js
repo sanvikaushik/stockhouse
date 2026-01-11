@@ -30,26 +30,33 @@ router.post("/purchase", async (req, res) => {
   const { userId, propertyId, sharesToBuy, isResident } = req.body;
 
   try {
-    const prop = await Property.findById(propertyId);
+    const prop = await Property.findById(propertyId); //
+    const user = await User.findById(userId); //
+
     if (!prop) return res.status(404).json({ error: "Property not found" });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    // 1. Availability Check
+    // 1. Calculate Total Cost
+    const totalCost = sharesToBuy * prop.sharePrice;
+
+    // 2. WALLET CHECK: Does the peer have enough fake money?
+    if (user.balance < totalCost) { //
+      return res.status(400).json({ error: "Insufficient wallet balance" });
+    }
+
+    // 3. Availability & Cap Logic
     if (prop.availableShares < sharesToBuy) {
-      return res.status(400).json({ error: "Insufficient community equity available" });
+      return res.status(400).json({ error: "Insufficient equity available" });
     }
 
-    // 2. Conditional Cap Logic
-    // Residents can buy up to 100%, Investors are capped at perUserShareCap
-    if (!isResident && sharesToBuy > prop.perUserShareCap) {
-      return res.status(400).json({ error: "Investor purchase exceeds per-user cap" });
-    }
-
-    // 3. Update Global Property State
+    // 4. ATOMIC TRANSACTION: Deduct Money & Update Equity
+    user.balance -= totalCost; //
     prop.availableShares -= sharesToBuy;
-    if (prop.availableShares === 0) prop.status = "fully_allocated";
-    await prop.save();
+    
+    await user.save(); // Save the new balance
+    await prop.save(); // Save the new share pool
 
-    // 4. Update Holding
+    // 5. Update Holding (P2P Ledger)
     await Holding.updateOne(
       { userId, propertyId },
       { $inc: { sharesOwned: sharesToBuy } },
@@ -58,8 +65,8 @@ router.post("/purchase", async (req, res) => {
 
     res.json({ 
       message: "Purchase successful", 
-      remainingPool: prop.availableShares,
-      sharesOwned: sharesToBuy
+      newBalance: user.balance, // Return new balance to UI
+      remainingPool: prop.availableShares
     });
   } catch (err) {
     res.status(500).json({ error: "Transaction failed", details: err.message });

@@ -6,6 +6,10 @@ import { connectDB } from "./db.js";
 import authRoutes from "./routes/auth.js";
 import propertyRoutes from "./routes/properties.js";
 
+import authRoutes from "./routes/auth.js";
+import propertyRoutes from "./routes/properties.js";
+import walletRoutes from "./routes/wallet.js"; // new wallet routes
+
 dotenv.config();
 
 const app = express();
@@ -55,6 +59,9 @@ app.use((req, res, next) => {
 
 app.use("/auth", authRoutes);
 app.use("/properties", propertyRoutes);
+app.use("/auth", authRoutes);
+app.use("/properties", propertyRoutes);
+app.use("/wallet", walletRoutes);
 
 app.get("/", (req, res) => {
   res.json({ 
