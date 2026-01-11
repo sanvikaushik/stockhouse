@@ -440,7 +440,27 @@
                             <button class="filter-tab">Seeking Investment</button>
                         </div>
                     </div>
-                    <div class="listings-grid" id="listings-grid">
+                    <div class="listings-grid" id="my-listings-grid">
+                        <div class="empty-state">Loading listings...</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+        <!-- ALL LISTINGS PAGE -->
+        <div class="page-section" id="all-listings-page">
+            <div class="dashboard-header">
+                <div class="container">
+                    <h1 class="dashboard-title">All Listings</h1>
+                    <p class="dashboard-subtitle">Browse all properties on StockHouse</p>
+                </div>
+            </div>
+
+            <section class="listings-section">
+                <div class="container">
+                    <div class="section-header">
+                        <h2 class="section-title">All Properties</h2>
+                    </div>
+                    <div class="listings-grid" id="all-listings-grid">
                         <div class="empty-state">Loading listings...</div>
                     </div>
                 </div>
@@ -471,7 +491,7 @@
 
         const numberFormatter = new Intl.NumberFormat("en-US");
 
-        const listingsGrid = document.getElementById("listings-grid");
+        // listings grids (my vs all)
 
         const getStatusMeta = (status) => {
             if (status === "fully_allocated") {
@@ -559,8 +579,29 @@
             `;
         };
 
-        const loadListings = async () => {
-            listingsGrid.innerHTML = "<div class=\"empty-state\">Loading listings...</div>";
+        function switchPage(pageId) {
+            // toggle page sections
+            document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
+            const target = document.getElementById(pageId + '-page');
+            if (target) target.classList.add('active');
+
+            // update nav link active state
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            const links = document.querySelectorAll('.nav-links .nav-link');
+            links.forEach(link => {
+                if (link.textContent.trim().toLowerCase().includes('my listings') && pageId === 'my-listings') link.classList.add('active');
+                if (link.textContent.trim().toLowerCase().includes('all listings') && pageId === 'all-listings') link.classList.add('active');
+            });
+
+            // load appropriate listings
+            loadListings(pageId === 'my-listings' ? 'my' : 'all');
+        }
+
+        const loadListings = async (mode = 'my') => {
+            const targetId = mode === 'my' ? 'my-listings-grid' : 'all-listings-grid';
+            const gridEl = document.getElementById(targetId);
+            if (!gridEl) return;
+            gridEl.innerHTML = "<div class=\"empty-state\">Loading listings...</div>";
 
             try {
                 const response = await fetch(`${API_BASE}/properties?limit=10`);
@@ -572,16 +613,19 @@
                 const properties = Array.isArray(payload) ? payload : payload.properties;
 
                 if (!properties || properties.length === 0) {
-                    listingsGrid.innerHTML = "<div class=\"empty-state\">No properties found.</div>";
+                    gridEl.innerHTML = "<div class=\"empty-state\">No properties found.</div>";
                     return;
                 }
 
-                listingsGrid.innerHTML = properties
+                // for "my" listings, show only first 2 items
+                const toRender = mode === 'my' ? properties.slice(0, 2) : properties.slice(0, 10);
+
+                gridEl.innerHTML = toRender
                     .map((property, index) => buildListingCard(property, index))
                     .join("");
             } catch (error) {
                 const message = error?.message || "Unknown error";
-                listingsGrid.innerHTML = `<div class="empty-state">Unable to load listings yet. ${message}</div>`;
+                gridEl.innerHTML = `<div class="empty-state">Unable to load listings yet. ${message}</div>`;
                 console.error("Failed to load listings", error);
             }
         };
@@ -682,7 +726,8 @@
         }
 
         document.addEventListener("DOMContentLoaded", () => {
-            loadListings();
+            // default to my listings page
+            switchPage('my-listings');
             populateProfileFromStorage();
         });
     </script>
