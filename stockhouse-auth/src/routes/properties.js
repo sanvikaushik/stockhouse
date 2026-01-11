@@ -4,25 +4,7 @@ import Property from "../models/Property.js";
 import Holding from "../models/Holding.js";
 import Router from "express";
 import User from "../models/User.js";
-
 const router = Router();
-
-// GET /properties - List available properties
-router.get("/", async (req, res) => {
-  const rawLimit = Number.parseInt(req.query.limit, 10);
-  const limit = Number.isNaN(rawLimit) ? 10 : Math.min(Math.max(rawLimit, 1), 50);
-
-  try {
-    const properties = await Property.find({})
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean();
-
-    res.json({ count: properties.length, properties });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch properties" });
-  }
-});
 
 // POST /properties/purchase - Purchase shares of a property
 router.post("/purchase", async (req, res) => {
