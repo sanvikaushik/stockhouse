@@ -118,6 +118,10 @@
         /* GRID */
         .investments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 24px; }
 
+        /* Property image */
+        .investment-image { width: 100%; height: 220px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3)); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+        .investment-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
         footer { background: var(--primary); border-top: 1px solid rgba(255, 255, 255, 0.1); padding: 60px 0 40px; margin-top: 120px; }
         .footer-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 48px; margin-bottom: 48px; }
         .footer-section h4 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
@@ -203,6 +207,32 @@
     <script>
         const INVESTMENTS_API = 'http://localhost:3001/properties';
         let investmentProperties = [];
+
+        const imagePaths = [
+            "House Images/architecture-3414399_1280.jpg",
+            "House Images/holiday-home-177401_1280.jpg",
+            "House Images/house-3133771_1280.jpg",
+            "House Images/house-3150500_1280.jpg",
+            "House Images/house-4304096_1280.jpg",
+            "House Images/house-4384774_1280.jpg",
+            "House Images/house-4498947_1280.jpg",
+            "House Images/large-home-389271_1280.jpg",
+            "House Images/phil-hearing-IYfp2Ixe9nM-unsplash.jpg",
+            "House Images/webaliser-_TPTXZd9mOo-unsplash.jpg"
+        ].map(p => encodeURI(p));
+
+        // Deterministic image selection based on a property key (id or address)
+        function getImageForKey(key) {
+            if (!key) return imagePaths[0];
+            // djb2 hash
+            let hash = 5381;
+            for (let i = 0; i < key.length; i++) {
+                hash = ((hash << 5) + hash) + key.charCodeAt(i); /* hash * 33 + c */
+                hash = hash & hash; // keep in 32-bit int
+            }
+            const idx = Math.abs(hash) % imagePaths.length;
+            return imagePaths[idx];
+        }
         let userInvestments = [];
 
         // Switch between tabs
@@ -253,7 +283,7 @@
                     const userType = localStorage.getItem('userType')
                     console.log(userType);
 
-                    grid.innerHTML = investmentProperties.map(prop => {
+                    grid.innerHTML = investmentProperties.map((prop, idx) => {
                         const availablePercent = (prop.availableShares / prop.totalShares) * 100;
                         const soldPercent = 100 - availablePercent;
                         const maxUserCap = prop.perUserShareCap || 200;
@@ -309,8 +339,11 @@
                                 </div>
                             `;
 
+                        const imageUrl = getImageForKey(String(prop._id || prop.address || idx));
+
                         return `
                             <div class="investment-card">
+                                <div class="investment-image" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3)), url('${imageUrl}') center/cover;"></div>
                                 <div class="investment-header">
                                     <div>
                                         <div class="investment-address">${prop.address}</div>
@@ -529,9 +562,11 @@
             }
 
             // --- FIXED SECTION BELOW ---
-            grid.innerHTML = userInvestments.map(holding => {
+                grid.innerHTML = userInvestments.map((holding, idx) => {
+                const imageUrl = getImageForKey(String(holding.propertyId || holding.address || idx));
                 return `
                     <div class="investment-card">
+                        <div class="investment-image" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3)), url('${imageUrl}') center/cover;"></div>
                         <div class="investment-header">
                             <div>
                                 <div class="investment-address">${holding.address}</div>
