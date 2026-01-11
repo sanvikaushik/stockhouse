@@ -458,9 +458,9 @@
             "House Images/house-4304096_1280.jpg",
             "House Images/house-4384774_1280.jpg",
             "House Images/house-4498947_1280.jpg",
-            "House Images/iceland-4524112_1280.jpg",
-            "House Images/irkutsk-3237561_1280.jpg",
-            "House Images/large-home-389271_1280.jpg"
+            "House Images/large-home-389271_1280.jpg",
+            "House Images/phil-hearing-IYfp2Ixe9nM-unsplash.jpg",
+            "House Images/webaliser-_TPTXZd9mOo-unsplash.jpg"
         ].map((path) => encodeURI(path));
 
         const currencyFormatter = new Intl.NumberFormat("en-US", {
@@ -566,7 +566,8 @@
             try {
                 const response = await fetch(`${API_BASE}/properties?limit=10`);
                 if (!response.ok) {
-                    throw new Error(`Request failed: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`Request failed: ${response.status} ${response.statusText} - ${errorText}`);
                 }
                 const payload = await response.json();
                 const properties = Array.isArray(payload) ? payload : payload.properties;
@@ -580,7 +581,8 @@
                     .map((property, index) => buildListingCard(property, index))
                     .join("");
             } catch (error) {
-                listingsGrid.innerHTML = "<div class=\"empty-state\">Unable to load listings yet. Make sure the API is running.</div>";
+                const message = error?.message || "Unknown error";
+                listingsGrid.innerHTML = `<div class="empty-state">Unable to load listings yet. ${message}</div>`;
                 console.error("Failed to load listings", error);
             }
         };

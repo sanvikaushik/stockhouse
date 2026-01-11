@@ -6,6 +6,25 @@ import Router from "express";
 import User from "../models/User.js";
 const router = Router();
 
+// GET /properties - List properties with optional pagination
+router.get("/", async (req, res) => {
+  try {
+    const limit = Number(req.query.limit) || 0;
+    const skip = Number(req.query.skip) || 0;
+    const status = req.query.status;
+    const filter = status ? { status } : {};
+
+    const properties = await Property.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.json({ properties, count: properties.length });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch properties", details: err.message });
+  }
+});
+
 // POST /properties/purchase - Purchase shares of a property
 router.post("/purchase", async (req, res) => {
   const { userId, propertyId, sharesToBuy, isResident } = req.body;
@@ -233,6 +252,17 @@ router.delete("/clear", async (req, res) => {
   } catch (error) {
     console.error("Clear error:", error);
     res.status(500).json({ error: "Failed to clear properties: " + error.message });
+  }
+});
+
+// GET /properties/:id - Fetch a single property
+router.get("/:id", async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ error: "Property not found" });
+    res.json(property);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch property", details: err.message });
   }
 });
 
