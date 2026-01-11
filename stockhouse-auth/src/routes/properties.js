@@ -4,61 +4,9 @@ import Property from "../models/Property.js";
 import Holding from "../models/Holding.js";
 import Router from "express";
 import User from "../models/User.js";
-
 const router = Router();
 
-<<<<<<< Updated upstream
-// GET /properties - List available properties
-router.get("/", async (req, res) => {
-  const rawLimit = Number.parseInt(req.query.limit, 10);
-  const limit = Number.isNaN(rawLimit) ? 10 : Math.min(Math.max(rawLimit, 1), 50);
-
-  try {
-    const properties = await Property.find({})
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean();
-
-    res.json({ count: properties.length, properties });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch properties" });
-  }
-});
-
-=======
-// ============================================================================
-// GET /properties - List all available properties (CRITICAL FIX)
-// ============================================================================
-router.get("/", async (req, res) => {
-  try {
-    const properties = await Property.find({ status: { $ne: "fully_allocated" } })
-      .limit(50)
-      .sort({ createdAt: -1 });
-    
-    res.json(properties);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch properties", details: err.message });
-  }
-});
-
-// ============================================================================
-// GET /properties/:id - Get single property details
-// ============================================================================
-router.get("/:id", async (req, res) => {
-  try {
-    const prop = await Property.findById(req.params.id);
-    if (!prop) return res.status(404).json({ error: "Property not found" });
-    
-    res.json(prop);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch property", details: err.message });
-  }
-});
-
-// ============================================================================
->>>>>>> Stashed changes
 // POST /properties/purchase - Purchase shares of a property
-// ============================================================================
 router.post("/purchase", async (req, res) => {
   const { userId, propertyId, sharesToBuy, isResident } = req.body;
 
@@ -140,182 +88,29 @@ router.get("/portfolio/:userId", async (req, res) => {
   }
 });
 
-// ============================================================================
-// POST /properties/sync/:id - Sync property valuation from Snowflake
-// ============================================================================
+// POST /properties/sync/:propertyId
 router.post("/sync/:id", async (req, res) => {
   try {
     const prop = await Property.findById(req.params.id);
     if (!prop) return res.status(404).json({ error: "Property not found" });
 
-    // Execute the Python bridge script with absolute path handling
-    const pythonScript = `${process.cwd()}/src/logic/sync_oracle.py`;
-    exec(`python3 "${pythonScript}" ${prop.externalPropertyId}`, 
-      { timeout: 30000, maxBuffer: 10 * 1024 * 1024 }, 
-      async (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Python Exec error:`, error);
-          console.error(`stderr:`, stderr);
-          return res.status(500).json({ 
-            error: "Oracle Sync Failed", 
-            details: stderr || error.message 
-          });
-        }
-        
-        try {
-          // Parse Python output (should be JSON)
-          const result = JSON.parse(stdout);
-          
-          // Update property with new valuation
-          prop.valuation = result.newValuation;
-          await prop.save();
-          
-          // Fetch the updated property
-          const updatedProp = await Property.findById(req.params.id);
-          res.json({ 
-            message: "Valuation synced with Snowflake", 
-            oldValuation: result.oldValuation,
-            newValuation: updatedProp.valuation,
-            appreciation: result.appreciation
-          });
-        } catch (parseErr) {
-          res.status(500).json({ 
-            error: "Failed to parse Python output", 
-            details: stdout 
-          });
-        }
+    // Execute the Python bridge script
+    exec(`python3 src/logic/sync_oracle.py ${prop.externalPropertyId}`, async (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Exec error: ${error}`);
+        return res.status(500).json({ error: "Oracle Sync Failed" });
       }
-    );
-  } catch (err) {
-    res.status(500).json({ error: "Sync failed", details: err.message });
-  }
-});
-
-// ============================================================================
-// POST /properties/calculate-dues/:propertyId - Calculate monthly dues (EQUITY)
-// ============================================================================
-router.post("/calculate-dues/:propertyId", async (req, res) => {
-  try {
-    const { occupantId, investorShares } = req.body;
-    
-    const prop = await Property.findById(req.params.propertyId);
-    if (!prop) return res.status(404).json({ error: "Property not found" });
-
-    // Calculate proportional dues based on equity
-    // Formula: Individual Payment = Total Mortgage × (Individual Equity / 100)
-    const totalMonthlyMortgage = prop.valuation * 0.005; // 0.5% of valuation
-    
-    const dues = {
-      occupant: {
-        id: occupantId,
-        equity: 51,
-        monthlyPayment: (totalMonthlyMortgage * 0.51).toFixed(2)
-      },
-      investors: investorShares.map(share => ({
-        id: share.investorId,
-        equity: share.equityPercentage,
-        monthlyPayment: (totalMonthlyMortgage * (share.equityPercentage / 100)).toFixed(2)
-      })),
-      total: totalMonthlyMortgage.toFixed(2)
-    };
-
-    // Validate: sum should equal total
-    const calculatedSum = parseFloat(dues.occupant.monthlyPayment) +
-      dues.investors.reduce((sum, inv) => sum + parseFloat(inv.monthlyPayment), 0);
-    
-    if (Math.abs(calculatedSum - parseFloat(dues.total)) > 0.01) {
-      return res.status(400).json({ 
-        error: "Equity calculation validation failed",
-        details: `Sum ${calculatedSum} != Total ${dues.total}`
+      
+      // Fetch the updated property from Mongo to return the new value
+      const updatedProp = await Property.findById(req.params.id);
+      res.json({ 
+        message: "Valuation synced with Snowflake", 
+        newValuation: updatedProp.valuation,
+        log: stdout 
       });
-    }
-
-    res.json(dues);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to calculate dues", details: err.message });
-  }
-});
-
-// ============================================================================
-// POST /properties/transfer-shares - Transfer equity between investors
-// ============================================================================
-router.post("/transfer-shares", async (req, res) => {
-  try {
-    const { propertyId, fromUserId, toUserId, sharesAmount, transactionPrice } = req.body;
-
-    if (!propertyId || !fromUserId || !toUserId || !sharesAmount || !transactionPrice) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    const prop = await Property.findById(propertyId);
-    if (!prop) return res.status(404).json({ error: "Property not found" });
-
-    // Get seller's holding
-    const sellerHolding = await Holding.findOne({ userId: fromUserId, propertyId });
-    if (!sellerHolding || sellerHolding.sharesOwned < sharesAmount) {
-      return res.status(400).json({ error: "Seller has insufficient shares" });
-    }
-
-    // Execute transfer
-    await Holding.updateOne(
-      { userId: fromUserId, propertyId },
-      { $inc: { sharesOwned: -sharesAmount } }
-    );
-
-    await Holding.updateOne(
-      { userId: toUserId, propertyId },
-      { $inc: { sharesOwned: sharesAmount } },
-      { upsert: true }
-    );
-
-    res.json({
-      message: "Share transfer successful",
-      transaction: {
-        from: fromUserId,
-        to: toUserId,
-        sharesTransferred: sharesAmount,
-        pricePerShare: (transactionPrice / sharesAmount).toFixed(2),
-        totalPrice: transactionPrice,
-        timestamp: new Date().toISOString()
-      }
     });
   } catch (err) {
-    res.status(500).json({ error: "Transfer failed", details: err.message });
-  }
-});
-
-// ============================================================================
-// GET /properties/validate-equity/:propertyId - Check 51% rule compliance
-// ============================================================================
-router.get("/validate-equity/:propertyId", async (req, res) => {
-  try {
-    const prop = await Property.findById(req.params.propertyId);
-    if (!prop) return res.status(404).json({ error: "Property not found" });
-
-    const holdings = await Holding.find({ propertyId: req.params.propertyId });
-    
-    // Calculate equity percentages
-    const totalShares = holdings.reduce((sum, h) => sum + h.sharesOwned, 0);
-    
-    const equityBreakdown = holdings.map(h => ({
-      userId: h.userId,
-      sharesOwned: h.sharesOwned,
-      equityPercentage: ((h.sharesOwned / totalShares) * 100).toFixed(2)
-    })).sort((a, b) => b.equityPercentage - a.equityPercentage);
-
-    // Check 51% rule (largest holder should have >= 51%)
-    const isValid = equityBreakdown.length > 0 && parseFloat(equityBreakdown[0].equityPercentage) >= 51;
-
-    res.json({
-      propertyId: req.params.propertyId,
-      totalInvestors: holdings.length,
-      totalSharesIssued: totalShares,
-      equityBreakdown,
-      is51RuleCompliant: isValid,
-      status: isValid ? "✅ VALID" : "❌ VIOLATION - Primary occupant < 51%"
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Validation failed", details: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
