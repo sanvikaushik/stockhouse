@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema(
 
     passwordHash: { type: String, required: true },
 
-    userType: { type: String, enum: ["investor", "admin"], default: "investor" },
+    userType: { type: String, enum: ["investor", "homeowner", "admin"], default: "investor" },
 
     stripeCustomerId: { type: String }, // fill later
 
