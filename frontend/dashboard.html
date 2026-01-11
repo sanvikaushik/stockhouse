@@ -397,7 +397,7 @@
                             <div class="stat-card-header">
                                 <div class="stat-icon">🏠</div>
                             </div>
-                            <div class="stat-value">4</div>
+                            <div class="stat-value" id="stat-properties-owned">0</div>
                             <div class="stat-label">Properties Owned</div>
                             <span class="stat-change positive">+1 this year</span>
                         </div>
@@ -405,7 +405,7 @@
                             <div class="stat-card-header">
                                 <div class="stat-icon">💰</div>
                             </div>
-                            <div class="stat-value">$3.2M</div>
+                            <div class="stat-value" id="stat-total-property-value">$0</div>
                             <div class="stat-label">Total Property Value</div>
                             <span class="stat-change positive">+15.8% this year</span>
                         </div>
@@ -413,7 +413,7 @@
                             <div class="stat-card-header">
                                 <div class="stat-icon">📊</div>
                             </div>
-                            <div class="stat-value">$1.8M</div>
+                            <div class="stat-value" id="stat-total-investment-raised">$0</div>
                             <div class="stat-label">Total Investment Raised</div>
                             <span class="stat-change positive">56% funded</span>
                         </div>
@@ -421,7 +421,7 @@
                             <div class="stat-card-header">
                                 <div class="stat-icon">👥</div>
                             </div>
-                            <div class="stat-value">23</div>
+                            <div class="stat-value" id="stat-active-investors">0</div>
                             <div class="stat-label">Active Investors</div>
                             <span class="stat-change positive">+7 this month</span>
                         </div>
@@ -490,6 +490,11 @@
         });
 
         const numberFormatter = new Intl.NumberFormat("en-US");
+
+        function formatMoney(value) {
+            if (typeof value !== 'number' || Number.isNaN(value)) return '$0';
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
+        }
 
         // listings grids (my vs all)
 
@@ -623,6 +628,14 @@
                 gridEl.innerHTML = toRender
                     .map((property, index) => buildListingCard(property, index))
                     .join("");
+                // If we're showing 'my' listings, update dashboard stats based on these properties
+                if (mode === 'my') {
+                    try {
+                        computeStatsFromProperties(toRender);
+                    } catch (err) {
+                        console.warn('Failed to compute stats from my listings', err);
+                    }
+                }
             } catch (error) {
                 const message = error?.message || "Unknown error";
                 gridEl.innerHTML = `<div class="empty-state">Unable to load listings yet. ${message}</div>`;
@@ -725,8 +738,36 @@
             alert('Profile updated locally.');
         }
 
+        // Compute dashboard stats from an array of property objects
+        async function computeStatsFromProperties(propsArray) {
+            const propsOwnedEl = document.getElementById('stat-properties-owned');
+            const totalValueEl = document.getElementById('stat-total-property-value');
+            const totalRaisedEl = document.getElementById('stat-total-investment-raised');
+            const activeInvestorsEl = document.getElementById('stat-active-investors');
+
+            const propsOwned = propsArray.length;
+            const totalValue = propsArray.reduce((s, p) => s + (Number(p.valuation) || 0), 0);
+            const totalRaised = propsArray.reduce((s, p) => {
+                const funded = (Number(p.totalShares) || 0) - (Number(p.availableShares) || 0);
+                return s + (funded * (Number(p.sharePrice) || 0));
+            }, 0);
+
+            if (propsOwnedEl) propsOwnedEl.textContent = String(propsOwned);
+            if (totalValueEl) totalValueEl.textContent = formatMoney(totalValue);
+            if (totalRaisedEl) totalRaisedEl.textContent = formatMoney(totalRaised);
+
+            // Fetch active investors count scoped to these properties
+            try {
+                const ids = propsArray.map(p => p._id).filter(Boolean).join(',');
+                // Force active investors to 5 (static as requested)
+                if (activeInvestorsEl) activeInvestorsEl.textContent = '5';
+            } catch (err) {
+                console.warn('Failed to fetch active investors for properties', err);
+            }
+        }
+
         document.addEventListener("DOMContentLoaded", () => {
-            // default to my listings page
+            // default to my listings page - loadListings('my') will compute stats from the properties shown
             switchPage('my-listings');
             populateProfileFromStorage();
         });

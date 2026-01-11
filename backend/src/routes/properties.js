@@ -273,4 +273,22 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// GET /properties/stats/active-investors - Count distinct users who hold any shares
+router.get('/stats/active-investors', async (req, res) => {
+  try {
+    const { propertyIds } = req.query; // optional comma-separated ids
+    if (propertyIds) {
+      const ids = String(propertyIds).split(',').map(id => id.trim()).filter(Boolean);
+      // find distinct users holding any of these properties
+      const distinctUsers = await Holding.distinct('userId', { propertyId: { $in: ids } });
+      return res.json({ count: distinctUsers.length });
+    }
+
+    const distinctUsers = await Holding.distinct('userId');
+    res.json({ count: distinctUsers.length });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to compute active investors', details: err.message });
+  }
+});
+
 export default router;
