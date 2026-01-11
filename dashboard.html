@@ -587,6 +587,28 @@
             }
         };
 
+        // Global logout handler used by the "Log Out" button in the header
+        function handleLogout() {
+            try {
+                // Remove common auth keys set by the app
+                localStorage.removeItem('token');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('currentUser');
+                // Clear any transient session storage
+                sessionStorage.clear();
+            } catch (err) {
+                console.warn('Error clearing storage during logout', err);
+            }
+
+            // Redirect to index page (use replace so back button won't return to dashboard)
+            try {
+                window.location.replace('index.html');
+            } catch (err) {
+                window.location.href = 'index.html';
+            }
+        }
+
         document.addEventListener("DOMContentLoaded", loadListings);
     </script>
 </body>
