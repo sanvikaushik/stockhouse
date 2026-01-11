@@ -9,6 +9,11 @@ import chatRoutes from "./routes/chat.js";
 
 dotenv.config();
 
+// Verify critical environment variables
+console.log('🔍 Environment Variables Check:');
+console.log('   GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? '✅ Set' : '❌ Missing');
+console.log('   MONGODB_URI:', process.env.MONGODB_URI ? '✅ Set' : '❌ Missing');
+console.log('   JWT_SECRET:', process.env.JWT_SECRET ? '✅ Set' : '❌ Missing');
 const app = express();
 
 // Enable CORS

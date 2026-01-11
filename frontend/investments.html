@@ -233,7 +233,10 @@
     </footer>
 
     <script>
-        const INVESTMENTS_API = 'http://localhost:3001/properties';
+        const API_BASE = window.STOCKHOUSE_API || 'http://localhost:3001';
+        const INVESTMENTS_API = `${API_BASE}/properties`;
+        const CHAT_API = `${API_BASE}/api/chat`;
+
         let investmentProperties = [];
 
         const imagePaths = [
@@ -709,6 +712,7 @@
             };
         }
 
+
         // Chat UI helpers
         function appendChatMessage(role, text) {
             const box = document.getElementById('chatMessages');
@@ -719,33 +723,67 @@
             box.scrollTop = box.scrollHeight;
         }
 
-        async function sendChatMessage() {
+async function sendChatMessage() {
             const input = document.getElementById('chatInput');
             const text = (input.value || '').trim();
             if (!text) return;
+            
             appendChatMessage('You', text);
             input.value = '';
+            
             const sendBtn = document.getElementById('chatSend');
             sendBtn.disabled = true;
-            appendChatMessage('Advisor', '...');
+            sendBtn.textContent = '...';
+            
+            appendChatMessage('Advisor', 'Thinking...');
 
             try {
-                const payload = { message: text, context: window.__stockhouse_ranking_context || {} };
-                const res = await fetch('http://localhost:3001/api/chat', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                const payload = { 
+                    message: text, 
+                    context: window.__stockhouse_ranking_context || {} 
+                };
+                
+                console.log('Sending chat request to:', `${API_BASE}/api/chat`);
+                
+                const res = await fetch(CHAT_API, {
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(payload)
                 });
-                const data = await res.json();
-                // remove the '...' placeholder
+                
+                console.log('Response status:', res.status);
+                
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    console.error('Chat error response:', errorText);
+                    throw new Error(`Server error: ${res.status}`);
+                }
+                
+                const contentType = res.headers.get('content-type') || '';
+                const data = contentType.includes('application/json') ? await res.json() : { reply: await res.text() };
+                console.log('Chat response:', data);
+                
+                // Remove "Thinking..." message
                 const box = document.getElementById('chatMessages');
                 if (box.lastChild) box.removeChild(box.lastChild);
+                
+                if (!res.ok) {
+                    appendChatMessage('Advisor', data.reply || `Server error (${res.status}). Please try again later.`);
+                    return;
+                }
+                
                 appendChatMessage('Advisor', data.reply || 'Sorry, I could not generate a response.');
             } catch (err) {
-                console.error('Chat send error', err);
+                console.error('Chat send error:', err);
+                
+                // Remove "Thinking..." message
                 const box = document.getElementById('chatMessages');
                 if (box.lastChild) box.removeChild(box.lastChild);
-                appendChatMessage('Advisor', 'Failed to contact advisor. Please try again later.');
+                
+                appendChatMessage('Advisor', `Error: ${err.message}. Please check that the backend is running and the API key is configured.`);
             } finally {
                 sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
             }
         }
 
