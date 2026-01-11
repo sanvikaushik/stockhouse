@@ -5,3 +5,17 @@
 credentials.txt
 
 __pycache__/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env files
+.env
+.env.*.local
+
+# macOS
+.DS_Store

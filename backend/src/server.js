@@ -1,11 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { connectDB } from "../../stockhouse-auth/src/db.js";
-
-import authRoutes from "../../stockhouse-auth/src/routes/auth.js";
-import propertyRoutes from "./routes/properties.js";
-
+import { connectDB } from "./db.js";
 import authRoutes from "./routes/auth.js";
 import propertyRoutes from "./routes/properties.js";
 import walletRoutes from "./routes/wallet.js"; // new wallet routes
@@ -57,8 +53,6 @@ app.use((req, res, next) => {
 // Routes
 // ============================================================================
 
-app.use("/auth", authRoutes);
-app.use("/properties", propertyRoutes);
 app.use("/auth", authRoutes);
 app.use("/properties", propertyRoutes);
 app.use("/wallet", walletRoutes);
@@ -138,4 +132,3 @@ process.on('SIGTERM', () => {
     process.exit(0);
   });
 });
-
