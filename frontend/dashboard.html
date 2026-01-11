@@ -435,9 +435,9 @@
                     <div class="section-header">
                         <h2 class="section-title">My Properties</h2>
                         <div class="filter-tabs">
-                            <button class="filter-tab active">All</button>
-                            <button class="filter-tab">Fully Funded</button>
-                            <button class="filter-tab">Seeking Investment</button>
+                            <button class="filter-tab active" data-filter="all">All</button>
+                            <button class="filter-tab" data-filter="funded">Fully Funded</button>
+                            <button class="filter-tab" data-filter="seeking">Seeking Investment</button>
                         </div>
                     </div>
                     <div class="listings-grid" id="my-listings-grid">
@@ -539,7 +539,7 @@
             const imageUrl = imagePaths[index % imagePaths.length];
 
             return `
-                <div class="listing-card">
+                <div class="listing-card" data-funded-percent="${fundedPercent}" data-funded="${fundedPercent >= 100 ? 'true' : 'false'}">
                     <div class="listing-image" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3)), url('${imageUrl}') center/cover;">
                         <span class="listing-status ${statusMeta.className}">${statusMeta.label}</span>
                     </div>
@@ -628,6 +628,8 @@
                 gridEl.innerHTML = toRender
                     .map((property, index) => buildListingCard(property, index))
                     .join("");
+                // apply current filter (preserve selection) and compute stats for my listings
+                applyListingFilter(currentListingFilter || 'all');
                 // If we're showing 'my' listings, update dashboard stats based on these properties
                 if (mode === 'my') {
                     try {
@@ -737,6 +739,38 @@
             closeProfileModal();
             alert('Profile updated locally.');
         }
+
+        // Listing filter state and functions
+        let currentListingFilter = 'all';
+
+        function applyListingFilter(filter) {
+            currentListingFilter = filter || 'all';
+            const activeSection = document.querySelector('.page-section.active');
+            if (!activeSection) return;
+            const grid = activeSection.querySelector('.listings-grid');
+            if (!grid) return;
+            const cards = grid.querySelectorAll('.listing-card');
+            cards.forEach(card => {
+                const funded = card.dataset.funded === 'true';
+                if (filter === 'all') {
+                    card.style.display = '';
+                } else if (filter === 'funded') {
+                    card.style.display = funded ? '' : 'none';
+                } else if (filter === 'seeking') {
+                    card.style.display = funded ? 'none' : '';
+                }
+            });
+        }
+
+        // Wire filter-tab buttons
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.filter-tab');
+            if (!btn) return;
+            const filter = btn.dataset.filter || 'all';
+            document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            applyListingFilter(filter);
+        });
 
         // Compute dashboard stats from an array of property objects
         async function computeStatsFromProperties(propsArray) {
