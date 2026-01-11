@@ -3,7 +3,7 @@ import snowflake.connector
 import pandas as pd
 import requests
 import json
-from credentials import load_credentials
+from snowflake.credentials import load_credentials
 
 print(snowflake.connector.__version__)
 

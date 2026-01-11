@@ -3,7 +3,7 @@ import sys
 import snowflake.connector
 import pandas as pd
 from pymongo import MongoClient
-from credentials import load_credentials
+from snowflake.credentials import load_credentials
 
 def sync_property_valuation(property_id):
     # 1. Load Snowflake Credentials & Connect

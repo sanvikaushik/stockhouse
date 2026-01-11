@@ -1,7 +1,7 @@
 import snowflake.connector
 import pandas as pd
 from snowflake.credentials import load_credentials
-from models.property import PropertyAgreement
+from snowflake.property import PropertyAgreement
 
 """
 What It Does:
