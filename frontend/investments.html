@@ -317,118 +317,141 @@
         }
 
         // Render investment cards
+        // Render investment cards with Demo-Specific Randomized Baselines
         function renderInvestmentCards() {
             const grid = document.getElementById('investmentsGrid');
+            if (!grid) return;
+
             if (investmentProperties.length === 0) {
                 grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-secondary);">No properties available yet</div>';
                 return;
             }
-                    const userType = localStorage.getItem('userType')
-                    console.log(userType);
 
-                    grid.innerHTML = investmentProperties.map((prop, idx) => {
-                        const availablePercent = (prop.availableShares / prop.totalShares) * 100;
-                        const soldPercentActual = 100 - availablePercent;
-                        const totalFundedPercent = Math.min(51 + soldPercentActual, 100);
-                        const maxUserCap = prop.perUserShareCap || 200;
-                        const canBuy = prop.availableShares > 0;
-                        const investorAllowed = userType == 'investor';
+            const userType = localStorage.getItem('userType');
+            console.log('Rendering cards for user type:', userType);
 
-                        const buySection = canBuy
-                            ? (investorAllowed
-                                ? `
-                                <div class="shares-input-section">
-                                    <div class="shares-input-group">
-                                        <label>Shares to Buy</label>
-                                        <input type="number" id="shares-${prop._id}" min="0" max="${Math.min(prop.availableShares, maxUserCap)}" value="0" 
-                                            oninput="updateInvestmentCalculation('${prop._id}', ${prop.sharePrice}, ${maxUserCap}, ${prop.availableShares})">
-                                        <div class="input-validation">
-                                            <span>Max: ${Math.min(prop.availableShares, maxUserCap)} shares</span>
-                                            <span id="shares-error-${prop._id}" style="color: var(--text-secondary);"></span>
-                                        </div>
-                                    </div>
-                                    <div class="shares-input-group">
-                                        <label>Ownership %</label>
-                                        <div style="padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; font-weight: 600; color: var(--accent);" id="ownership-${prop._id}">0.00%</div>
-                                    </div>
+            grid.innerHTML = investmentProperties.map((prop, idx) => {
+                // 1. Data Parsing
+                const availableShares = Number(prop.availableShares);
+                const totalShares = Number(prop.totalShares) || 10000;
+                
+                // 2. Real Investor Activity Calculation
+                const availablePercent = (availableShares / totalShares) * 100;
+                const soldPercentActual = 100 - availablePercent;
+
+                // 3. === DEMO FEATURE: Deterministic Randomized 51% - 89% Baseline ===
+                // This creates a consistent "Starting Percentage" for each house based on its ID
+                const propSeed = prop._id ? prop._id.split('').reduce((a, b) => a + b.charCodeAt(0), 0) : idx;
+                const demoBaseline = 51 + (propSeed % 41); // Pick a number from 51 to 89
+                
+                // Total Progress = Randomized Homeowner Baseline + Real Community Purchases
+                const totalFundedPercent = Math.min(demoBaseline + soldPercentActual, 100);
+
+                // 4. Buying Logic & Caps
+                const maxUserCap = prop.perUserShareCap || 200;
+                const canBuy = availableShares > 0;
+                const investorAllowed = userType == 'investor';
+
+                const buySection = canBuy
+                    ? (investorAllowed
+                        ? `
+                        <div class="shares-input-section">
+                            <div class="shares-input-group">
+                                <label>Shares to Buy</label>
+                                <input type="number" id="shares-${prop._id}" min="0" max="${Math.min(availableShares, maxUserCap)}" value="0" 
+                                    oninput="updateInvestmentCalculation('${prop._id}', ${prop.sharePrice}, ${maxUserCap}, ${availableShares})">
+                                <div class="input-validation">
+                                    <span>Max: ${Math.min(availableShares, maxUserCap)} shares</span>
+                                    <span id="shares-error-${prop._id}" style="color: var(--text-secondary);"></span>
                                 </div>
-
-                                <div class="calculation-display">
-                                    <div class="calc-row">
-                                        <span class="calc-label">Share Price:</span>
-                                        <span>$${Math.round(prop.sharePrice).toLocaleString('en-US')}</span>
-                                    </div>
-                                    <div class="calc-row">
-                                        <span class="calc-label">Quantity:</span>
-                                        <span id="qty-${prop._id}">0 shares</span>
-                                    </div>
-                                    <div class="calc-row">
-                                        <span class="calc-label">Total Cost:</span>
-                                        <span id="total-${prop._id}">$0</span>
-                                    </div>
-                                </div>
-
-                                <button class="buy-btn" id="btn-${prop._id}" onclick="buyShares('${prop._id}', '${prop.address}', ${prop.sharePrice})" disabled>
-                                    Buy Now
-                                </button>
-                                `
-                                : `
-                                <div class="error-message">
-                                    🔒 You must be an investor to purchase shares. Please sign up as an investor.
-                                </div>
-                                `)
-                            : `
-                                <div class="error-message">
-                                    🔒 This property is fully allocated. Check back soon for new opportunities!
-                                </div>
-                            `;
-
-                        const streetKey = extractStreetNumber(prop.address) || String(prop._id || prop.address || idx);
-                        let imageUrl = getImageForKey(String(streetKey));
-                        if (prop.images && Array.isArray(prop.images) && prop.images.length > 0) {
-                            imageUrl = prop.images[0];
-                        }
-
-                        return `
-                            <div class="investment-card" id="prop-${prop._id}">
-                                <div class="investment-image" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3)), url('${imageUrl}') center/cover;"></div>
-                                <div class="investment-header">
-                                    <div>
-                                        <div class="investment-address">${prop.address}</div>
-                                        <div class="investment-location">📍 ${prop.city || ''}${prop.city && prop.state ? ', ' : ''}${prop.state || ''}</div>
-                                    </div>
-                                    <div class="investment-status">${canBuy ? '✓ Available' : '⊗ Sold Out'}</div>
-                                </div>
-
-                                <div class="investment-details">
-                                    <div class="detail-item">
-                                        <div class="detail-label">Share Price</div>
-                                        <div class="detail-value">$${Math.round(prop.sharePrice).toLocaleString('en-US')}</div>
-                                    </div>
-                                    <div class="detail-item">
-                                        <div class="detail-label">Valuation</div>
-                                        <div class="detail-value">$${Math.round(prop.valuation).toLocaleString('en-US')}</div>
-                                    </div>
-                                    <div class="detail-item">
-                                        <div class="detail-label">Available</div>
-                                        <div class="detail-value">${prop.availableShares}/${prop.totalShares}</div>
-                                    </div>
-                                </div>
-
-                                <div class="investment-progress">
-                                    <div class="progress-label">
-                                        <span>Shares Sold</span>
-                                        <span>${totalFundedPercent.toFixed(1)}%</span>
-                                    </div>
-                                    <div class="progress-bar">
-                                        <div class="progress-fill" style="width: ${totalFundedPercent}%"></div>
-                                    </div>
-                                </div>
-
-                                ${buySection}
                             </div>
-                        `;
-                    }).join('');
+                            <div class="shares-input-group">
+                                <label>Ownership %</label>
+                                <div style="padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; font-weight: 600; color: var(--accent);" id="ownership-${prop._id}">0.00%</div>
+                            </div>
+                        </div>
+
+                        <div class="calculation-display">
+                            <div class="calc-row">
+                                <span class="calc-label">Share Price:</span>
+                                <span>$${Math.round(prop.sharePrice).toLocaleString('en-US')}</span>
+                            </div>
+                            <div class="calc-row">
+                                <span class="calc-label">Quantity:</span>
+                                <span id="qty-${prop._id}">0 shares</span>
+                            </div>
+                            <div class="calc-row">
+                                <span class="calc-label">Total Cost:</span>
+                                <span id="total-${prop._id}">$0</span>
+                            </div>
+                        </div>
+
+                        <button class="buy-btn" id="btn-${prop._id}" onclick="buyShares('${prop._id}', '${prop.address}', ${prop.sharePrice})" disabled>
+                            Buy Now
+                        </button>
+                        `
+                        : `
+                        <div class="error-message">
+                            🔒 You must be an investor to purchase shares.
+                        </div>
+                        `)
+                    : `
+                        <div class="error-message">
+                            🔒 Fully allocated. Join the waitlist for the secondary market!
+                        </div>
+                    `;
+
+                // 5. Asset Visuals (Image logic)
+                const streetKey = extractStreetNumber(prop.address) || String(prop._id || idx);
+                let imageUrl = getImageForKey(String(streetKey));
+                if (prop.images && Array.isArray(prop.images) && prop.images.length > 0) {
+                    imageUrl = prop.images[0];
+                }
+
+                return `
+                    <div class="investment-card" id="prop-${prop._id}">
+                        <div class="investment-image" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3)), url('${imageUrl}') center/cover;"></div>
+                        <div class="investment-header">
+                            <div>
+                                <div class="investment-address">${prop.address}</div>
+                                <div class="investment-location">📍 ${prop.city || ''}${prop.city && prop.state ? ', ' : ''}${prop.state || ''}</div>
+                            </div>
+                            <div class="investment-status">${canBuy ? '✓ Available' : '⊗ Sold Out'}</div>
+                        </div>
+
+                        <div class="investment-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Share Price</div>
+                                <div class="detail-value">$${Math.round(prop.sharePrice).toLocaleString('en-US')}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Valuation</div>
+                                <div class="detail-value">$${Math.round(prop.valuation).toLocaleString('en-US')}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Available</div>
+                                <div class="detail-value">${availableShares}/${totalShares}</div>
+                            </div>
+                        </div>
+
+                        <div class="investment-progress">
+                            <div class="progress-label">
+                                <span>Total Equity Funded</span>
+                                <span>${totalFundedPercent.toFixed(1)}%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${totalFundedPercent}%"></div>
+                            </div>
+                        </div>
+
+                        ${buySection}
+                        
+                        <button class="btn btn-secondary" style="width:100%; margin-top:10px; font-size:12px; padding:8px;" onclick="syncProperty('${prop._id}')">
+                            🔄 Sync Oracle Price
+                        </button>
+                    </div>
+                `;
+            }).join('');
         }
 
         // Calculate and display purchase details
@@ -545,72 +568,87 @@
         }
 
         // Load user's investments
-        function loadUserInvestments() {
+        async function loadUserInvestments() {
             const grid = document.getElementById('myInvestmentsGrid');
             const userId = localStorage.getItem('userId');
+            const token = localStorage.getItem('authToken');
 
-            const userKey = `investments_${userId}`;
-            const saved = localStorage.getItem(userKey);
-            if (!saved) {
-                grid.innerHTML = `
-                    <div style="grid-column: 1/-1; text-align: center; padding: 60px 40px; color: var(--text-secondary);">
-                        <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
-                        <h3 style="font-size: 24px; color: var(--text-primary); margin-bottom: 12px;">No Investments Yet</h3>
-                        <p>You haven't purchased any shares. Browse available properties in the "Available Properties" tab to get started.</p>
-                    </div>
-                `;
+            if (!userId) {
+                grid.innerHTML = '<div class="error-message">Please log in to see your assets.</div>';
                 return;
             }
 
             try {
-                userInvestments = JSON.parse(saved);
-            } catch (e) {
-                console.error('Failed to parse saved investments', e);
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">Error loading your investments</div>';
-                return;
-            }
+                console.log('📡 Fetching live portfolio from backend...');
+                // Citing the backend portfolio route
+                const response = await fetch(`http://localhost:3001/properties/portfolio/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
 
-            // --- FIXED SECTION BELOW ---
-                grid.innerHTML = userInvestments.map((holding, idx) => {
-                let imageUrl = getImageForKey(String(holding.propertyId || holding.address || idx));
-                if (holding.images && Array.isArray(holding.images) && holding.images.length > 0) {
-                    imageUrl = holding.images[0];
+                if (!response.ok) throw new Error('Failed to load portfolio');
+
+                const data = await response.json(); // returns { summary, assets }
+                const userAssets = data.assets;
+
+                if (userAssets.length === 0) {
+                    grid.innerHTML = `
+                        <div style="grid-column: 1/-1; text-align: center; padding: 60px;">
+                            <h3>No Investments Yet</h3>
+                            <p>Go to "Available Properties" to buy your first Brick.</p>
+                        </div>`;
+                    return;
                 }
-                const holdingId = holding.propertyId || idx;
-                return `
-                    <div class="investment-card" id="holding-${holdingId}">
-                        <div class="investment-image" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3)), url('${imageUrl}') center/cover;"></div>
-                        <div class="investment-header">
-                            <div>
-                                <div class="investment-address">${holding.address}</div>
-                                <div class="investment-location">📍 ${holding.city}, ${holding.state}</div>
-                            </div>
-                            <div class="investment-status" style="background: rgba(59, 130, 246, 0.1); color: var(--accent);">
-                                Portfolio Holding
-                            </div>
-                        </div>
 
-                        <div class="investment-details">
-                            <div class="detail-item">
-                                <div class="detail-label">Your Shares</div>
-                                <div class="detail-value">${holding.shareCount}</div>
+                // Render the real assets from the database
+                grid.innerHTML = userAssets.map(asset => {
+                    const profitColor = asset.unrealizedProfit >= 0 ? 'var(--success)' : '#ef4444';
+                    
+                    return `
+                        <div class="investment-card">
+                            <div class="investment-header">
+                                <div>
+                                    <div class="investment-address">${asset.address}</div>
+                                    <div class="investment-location">📍 ${asset.propertyId}</div>
+                                </div>
+                                <div class="investment-status" style="background: rgba(59, 130, 246, 0.1); color: var(--accent);">
+                                    ${asset.equityPercentage}% Owned
+                                </div>
                             </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Total Value</div>
-                                <div class="detail-value">$${Math.round(holding.totalValue).toLocaleString()}</div>
+
+                            <div class="investment-details">
+                                <div class="detail-item">
+                                    <div class="detail-label">Shares</div>
+                                    <div class="detail-value">${asset.sharesOwned}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label">Current Value</div>
+                                    <div class="detail-value">$${Math.round(asset.currentMarketValue).toLocaleString()}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label">Profit/Loss</div>
+                                    <div class="detail-value" style="color: ${profitColor}">
+                                        $${Math.round(asset.unrealizedProfit).toLocaleString()}
+                                    </div>
+                                </div>
                             </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Ownership</div>
-                                <div class="detail-value">${holding.ownershipPercent.toFixed(2)}%</div>
+                            
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 10px; display: flex; justify-content: space-between;">
+                                <span>Original Cost: $${Math.round(asset.totalInvestment).toLocaleString()}</span>
+                                <span style="font-weight: bold; color: ${profitColor}">${asset.appreciation} ↑</span>
                             </div>
                         </div>
-                        
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 10px;">
-                            Purchased on: ${new Date(holding.purchaseDate).toLocaleDateString()}
-                        </div>
-                    </div>
-                `;
-            }).join('');
+                    `;
+                }).join('');
+
+                // Update the Global Equity Header
+                if (document.getElementById('portfolioValue')) {
+                    document.getElementById('portfolioValue').textContent = `$${Math.round(data.summary.totalPortfolioValue).toLocaleString()}`;
+                }
+
+            } catch (e) {
+                console.error('Portfolio Error:', e);
+                grid.innerHTML = '<div class="error-message">Error loading live assets.</div>';
+            }
         }
 
         async function updateWalletUI() {

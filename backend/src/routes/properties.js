@@ -25,49 +25,41 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST /properties - Create a new property (accepts optional imageBase64)
+// POST /properties - Create a new property with randomized resident stake
 router.post("/", async (req, res) => {
   try {
     const {
-      address,
-      city,
-      state,
-      zip,
-      valuation,
-      totalShares,
-      sharePrice,
-      perUserShareCap,
-      status,
-      imageBase64
+      address, city, state, zip, valuation, totalShares, sharePrice, perUserShareCap, status, imageBase64
     } = req.body;
 
     if (!address || !city || !totalShares || !sharePrice) {
-      return res.status(400).json({ error: 'Missing required fields (address, city, totalShares, sharePrice)' });
+        return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const externalPropertyId = `ext_${Date.now()}`;
-    const images = [];
-    if (imageBase64) images.push(imageBase64);
+    // NEW LOGIC: Randomize Resident Stake (51% to 89%)
+    const residentStakePercent = Math.floor(Math.random() * (89 - 51 + 1)) + 51;
+    const totalSharesNum = Number(totalShares);
+    const residentShares = Math.floor((residentStakePercent / 100) * totalSharesNum);
+    
+    // Available shares for investors is the remainder
+    const availableShares = totalSharesNum - residentShares;
 
+    const externalPropertyId = `ext_${Date.now()}`;
     const prop = new Property({
       externalPropertyId,
-      address,
-      city,
-      state,
-      zip,
-      images,
+      address, city, state, zip,
+      images: imageBase64 ? [imageBase64] : [],
       valuation: Number(valuation) || 0,
-      totalShares: Number(totalShares) || 0,
-      availableShares: Number(totalShares) || 0,
+      totalShares: totalSharesNum,
+      availableShares: availableShares, // Now reflects the actual investor pool
       sharePrice: Number(sharePrice) || 0,
       perUserShareCap: Number(perUserShareCap) || 200,
       status: status || 'active'
     });
 
     await prop.save();
-    res.json({ success: true, property: prop });
+    res.json({ success: true, property: prop, residentStake: `${residentStakePercent}%` });
   } catch (err) {
-    console.error('Create property error:', err);
     res.status(500).json({ error: 'Failed to create property', details: err.message });
   }
 });
