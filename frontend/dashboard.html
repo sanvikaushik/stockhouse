@@ -378,6 +378,66 @@
         </nav>
     </header>
 
+    <!-- ADD PROPERTY MODAL -->
+    <div class="modal-overlay" id="addPropertyModal">
+        <div class="profile-modal">
+            <div class="modal-header">
+                <button class="modal-close" onclick="closeAddPropertyModal()">&times;</button>
+                <h2>Add a Property</h2>
+                <p>Provide property details and upload one image</p>
+            </div>
+            <div class="modal-content">
+                <form id="addPropertyForm" onsubmit="handleAddPropertySubmit(event)">
+                    <div class="form-group">
+                        <label for="propAddress">Address</label>
+                        <input id="propAddress" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="propCity">City</label>
+                        <input id="propCity" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="propState">State</label>
+                        <input id="propState" />
+                    </div>
+                    <div class="form-group">
+                        <label for="propZip">ZIP</label>
+                        <input id="propZip" />
+                    </div>
+                    <div class="form-group">
+                        <label for="propValuation">Valuation (USD)</label>
+                        <input id="propValuation" type="number" step="1" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="propTotalShares">Total Shares</label>
+                        <input id="propTotalShares" type="number" step="1" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="propSharePrice">Share Price (USD)</label>
+                        <input id="propSharePrice" type="number" step="0.01" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="propPerUserShareCap">Per-User Share Cap</label>
+                        <input id="propPerUserShareCap" type="number" step="1" value="200" />
+                    </div>
+                    <div class="form-group">
+                        <label for="propStatus">Status</label>
+                        <select id="propStatus">
+                            <option value="active" selected>Active</option>
+                            <option value="paused">Paused</option>
+                            <option value="fully_allocated">Fully Allocated</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="propImage">Image</label>
+                        <input id="propImage" type="file" accept="image/*" />
+                    </div>
+                    <button type="submit" class="submit-btn">Create Property</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <main class="main-content">
         <!-- MY LISTINGS PAGE -->
         <div class="page-section active" id="my-listings-page">
@@ -434,10 +494,13 @@
                 <div class="container">
                     <div class="section-header">
                         <h2 class="section-title">My Properties</h2>
-                        <div class="filter-tabs">
-                            <button class="filter-tab active" data-filter="all">All</button>
-                            <button class="filter-tab" data-filter="funded">Fully Funded</button>
-                            <button class="filter-tab" data-filter="seeking">Seeking Investment</button>
+                        <div style="display:flex; gap:12px; align-items:center;">
+                            <div class="filter-tabs">
+                                <button class="filter-tab active" data-filter="all">All</button>
+                                <button class="filter-tab" data-filter="funded">Fully Funded</button>
+                                <button class="filter-tab" data-filter="seeking">Seeking Investment</button>
+                            </div>
+                            <button id="addPropertyBtn" class="btn btn-manage" style="white-space:nowrap;" onclick="openAddPropertyModal()">Add a property</button>
                         </div>
                     </div>
                     <div class="listings-grid" id="my-listings-grid">
@@ -538,7 +601,12 @@
             const location = [property.city, property.state].filter(Boolean).join(", ") || "Location unavailable";
             const title = (property.address || `Property ${property.externalPropertyId || ""}`).trim();
             const statusMeta = getStatusMeta(property.status);
-            const imageUrl = imagePaths[index % imagePaths.length];
+            // Prefer server-provided image if available (data URL or hosted), fallback to bundled images
+            let imageUrl = imagePaths[index % imagePaths.length];
+            if (property.images && Array.isArray(property.images) && property.images.length > 0) {
+                // use first image value (could be a data URL)
+                imageUrl = property.images[0];
+            }
 
             return `
                 <div class="listing-card" data-funded-percent="${fundedPercent}" data-funded="${fundedPercent >= 100 ? 'true' : 'false'}">
@@ -803,6 +871,85 @@
                 if (activeInvestorsEl) activeInvestorsEl.textContent = '5';
             } catch (err) {
                 console.warn('Failed to fetch active investors for properties', err);
+            }
+        }
+
+        // Add Property modal helpers
+        function openAddPropertyModal() {
+            const overlay = document.getElementById('addPropertyModal');
+            if (overlay) overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            // reset form
+            const form = document.getElementById('addPropertyForm');
+            if (form) form.reset();
+        }
+
+        function closeAddPropertyModal() {
+            const overlay = document.getElementById('addPropertyModal');
+            if (overlay) overlay.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                if (!file) return resolve(null);
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('Failed to read file'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handleAddPropertySubmit(event) {
+            event.preventDefault();
+            const address = document.getElementById('propAddress')?.value?.trim();
+            const city = document.getElementById('propCity')?.value?.trim();
+            const state = document.getElementById('propState')?.value?.trim();
+            const zip = document.getElementById('propZip')?.value?.trim();
+            const valuation = Number(document.getElementById('propValuation')?.value) || 0;
+            const totalShares = Number(document.getElementById('propTotalShares')?.value) || 0;
+            const sharePrice = Number(document.getElementById('propSharePrice')?.value) || 0;
+            const perUserShareCap = Number(document.getElementById('propPerUserShareCap')?.value) || 200;
+            const status = document.getElementById('propStatus')?.value || 'active';
+            const fileInput = document.getElementById('propImage');
+            const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+
+            if (!address || !city || !totalShares || !sharePrice) {
+                alert('Please fill required fields: address, city, total shares and share price.');
+                return;
+            }
+
+            let imageBase64 = null;
+            try {
+                imageBase64 = await readFileAsDataURL(file);
+            } catch (err) {
+                console.warn('Image read failed', err);
+            }
+
+            const payload = {
+                address, city, state, zip,
+                valuation, totalShares, sharePrice, perUserShareCap, status,
+                imageBase64
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/properties`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data?.error || data?.message || 'Failed to create property');
+                }
+                closeAddPropertyModal();
+                alert('Property created successfully.');
+                // refresh both my and all listings
+                loadListings('my');
+                loadListings('all');
+            } catch (err) {
+                console.error('Failed to create property', err);
+                alert('Failed to create property: ' + (err.message || err));
             }
         }
 

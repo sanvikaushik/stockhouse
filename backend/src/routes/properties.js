@@ -25,6 +25,53 @@ router.get("/", async (req, res) => {
   }
 });
 
+// POST /properties - Create a new property (accepts optional imageBase64)
+router.post("/", async (req, res) => {
+  try {
+    const {
+      address,
+      city,
+      state,
+      zip,
+      valuation,
+      totalShares,
+      sharePrice,
+      perUserShareCap,
+      status,
+      imageBase64
+    } = req.body;
+
+    if (!address || !city || !totalShares || !sharePrice) {
+      return res.status(400).json({ error: 'Missing required fields (address, city, totalShares, sharePrice)' });
+    }
+
+    const externalPropertyId = `ext_${Date.now()}`;
+    const images = [];
+    if (imageBase64) images.push(imageBase64);
+
+    const prop = new Property({
+      externalPropertyId,
+      address,
+      city,
+      state,
+      zip,
+      images,
+      valuation: Number(valuation) || 0,
+      totalShares: Number(totalShares) || 0,
+      availableShares: Number(totalShares) || 0,
+      sharePrice: Number(sharePrice) || 0,
+      perUserShareCap: Number(perUserShareCap) || 200,
+      status: status || 'active'
+    });
+
+    await prop.save();
+    res.json({ success: true, property: prop });
+  } catch (err) {
+    console.error('Create property error:', err);
+    res.status(500).json({ error: 'Failed to create property', details: err.message });
+  }
+});
+
 // POST /properties/purchase - Purchase shares of a property
 router.post("/purchase", async (req, res) => {
   const { userId, propertyId, sharesToBuy, isResident } = req.body;

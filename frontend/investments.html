@@ -345,7 +345,10 @@
                                 </div>
                             `;
 
-                        const imageUrl = getImageForKey(String(prop._id || prop.address || idx));
+                        let imageUrl = getImageForKey(String(prop._id || prop.address || idx));
+                        if (prop.images && Array.isArray(prop.images) && prop.images.length > 0) {
+                            imageUrl = prop.images[0];
+                        }
 
                         return `
                             <div class="investment-card" id="prop-${prop._id}">
@@ -569,7 +572,10 @@
 
             // --- FIXED SECTION BELOW ---
                 grid.innerHTML = userInvestments.map((holding, idx) => {
-                const imageUrl = getImageForKey(String(holding.propertyId || holding.address || idx));
+                let imageUrl = getImageForKey(String(holding.propertyId || holding.address || idx));
+                if (holding.images && Array.isArray(holding.images) && holding.images.length > 0) {
+                    imageUrl = holding.images[0];
+                }
                 const holdingId = holding.propertyId || idx;
                 return `
                     <div class="investment-card" id="holding-${holdingId}">
