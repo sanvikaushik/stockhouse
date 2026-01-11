@@ -113,6 +113,10 @@
             width: 100%; padding: 14px 20px; background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(59, 130, 246, 0.3); 
             border-radius: 12px; color: var(--text-primary); font-size: 16px; transition: all 0.3s;
         }
+        .search-results { margin-top: 8px; max-width: 700px; }
+        .search-item { padding: 10px 12px; background: rgba(255,255,255,0.03); border-radius: 8px; cursor: pointer; margin-bottom: 8px; transition: background 0.15s; }
+        .search-item:hover { background: rgba(59,130,246,0.08); }
+        .card-highlight { box-shadow: 0 0 0 4px rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.3); transform: translateY(-4px); }
         .search-container input:focus { outline: none; border-color: var(--accent); background: rgba(255, 255, 255, 0.1); }
 
         /* GRID */
@@ -176,6 +180,7 @@
                 <div class="search-container">
                     <input type="text" id="searchInvestments" placeholder="Search properties by address or city..." 
                         onkeyup="filterInvestments()">
+                    <div id="searchResults" class="search-results"></div>
                 </div>
 
                 <div id="investmentsGrid" class="investments-grid">
@@ -342,7 +347,7 @@
                         const imageUrl = getImageForKey(String(prop._id || prop.address || idx));
 
                         return `
-                            <div class="investment-card">
+                            <div class="investment-card" id="prop-${prop._id}">
                                 <div class="investment-image" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3)), url('${imageUrl}') center/cover;"></div>
                                 <div class="investment-header">
                                     <div>
@@ -564,8 +569,9 @@
             // --- FIXED SECTION BELOW ---
                 grid.innerHTML = userInvestments.map((holding, idx) => {
                 const imageUrl = getImageForKey(String(holding.propertyId || holding.address || idx));
+                const holdingId = holding.propertyId || idx;
                 return `
-                    <div class="investment-card">
+                    <div class="investment-card" id="holding-${holdingId}">
                         <div class="investment-image" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3)), url('${imageUrl}') center/cover;"></div>
                         <div class="investment-header">
                             <div>
@@ -612,6 +618,59 @@
             }
             
             fetchInvestmentProperties();
+        }
+
+        // Filter investments by address/city and show clickable results that scroll to the card
+        function filterInvestments() {
+            const q = (document.getElementById('searchInvestments').value || '').trim().toLowerCase();
+            const resultsEl = document.getElementById('searchResults');
+            if (!resultsEl) return;
+
+            if (!q) {
+                // show all cards
+                investmentProperties.forEach(p => {
+                    const el = document.getElementById('prop-' + p._id);
+                    if (el) el.style.display = '';
+                });
+                resultsEl.innerHTML = '';
+                return;
+            }
+
+            const matches = investmentProperties.filter(p => {
+                const addr = (p.address || '').toLowerCase();
+                const city = (p.city || '').toLowerCase();
+                return addr.includes(q) || city.includes(q);
+            });
+
+            // toggle visibility
+            investmentProperties.forEach(p => {
+                const el = document.getElementById('prop-' + p._id);
+                if (el) el.style.display = matches.includes(p) ? '' : 'none';
+            });
+
+            if (matches.length === 0) {
+                resultsEl.innerHTML = '<div class="search-item" style="opacity:0.8">No matches</div>';
+                return;
+            }
+
+            resultsEl.innerHTML = matches.map(m => `<div class="search-item" data-id="${m._id}">${m.address} — ${m.city || ''}</div>`).join('');
+
+            // attach click handlers
+            resultsEl.querySelectorAll('.search-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const propId = e.currentTarget.getAttribute('data-id');
+                    // ensure Available tab active
+                    try { switchTab('available'); } catch (_) {}
+                    // small delay to ensure DOM rendered
+                    setTimeout(() => {
+                        const card = document.getElementById('prop-' + propId);
+                        if (!card) return;
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        card.classList.add('card-highlight');
+                        setTimeout(() => card.classList.remove('card-highlight'), 2200);
+                    }, 150);
+                });
+            });
         }
 
         // Logout function
