@@ -6,8 +6,6 @@ import { connectDB } from "./db.js";
 import authRoutes from "./routes/auth.js";
 import propertyRoutes from "./routes/properties.js";
 
-import authRoutes from "./routes/auth.js";
-import propertyRoutes from "./routes/properties.js";
 import walletRoutes from "./routes/wallet.js"; // new wallet routes
 
 dotenv.config();
