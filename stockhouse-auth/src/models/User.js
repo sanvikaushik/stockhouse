@@ -13,8 +13,10 @@ const userSchema = new mongoose.Schema(
 
     stripeCustomerId: { type: String }, // fill later
 
-    lastLoginAt: { type: Date }
-    ,
+    lastLoginAt: { type: Date },
+
+    balance: { type: Number, default: 100000 }, // Starting with $100k "Fake Money"
+    
     investments: [
       {
         propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property' },
