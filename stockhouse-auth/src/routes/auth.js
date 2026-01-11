@@ -62,4 +62,16 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// GET /auth/user/:id - Fetch minimal user profile
+router.get("/user/:id", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("userType");
+    if (!user) return res.status(404).json({ error: "User not found" });
+    return res.json({ userType: user.userType });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch user" });
+  }
+});
+
 export default router;
