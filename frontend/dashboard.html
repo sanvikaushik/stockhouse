@@ -546,6 +546,14 @@
             "House Images/webaliser-_TPTXZd9mOo-unsplash.jpg"
         ].map((path) => encodeURI(path));
 
+        // Extract a deterministic street key from an address: leading number + first street word (e.g. '123 Main St' -> '123_Main')
+        function extractStreetKey(address) {
+            if (!address || typeof address !== 'string') return null;
+            const m = address.trim().match(/^\s*(\d+)\s+([A-Za-z0-9\-]+)/);
+            if (!m) return null;
+            return `${m[1]}_${m[2].toLowerCase()}`;
+        }
+
         // Deterministic image selection based on a property key (id or address)
         function getImageForKey(key) {
             if (!key) return imagePaths[0];
@@ -597,6 +605,40 @@
             return numberFormatter.format(value);
         };
 
+        // djb2 hash returning non-negative integer
+        function djb2Hash(str) {
+            let hash = 5381;
+            for (let i = 0; i < (str || '').length; i++) {
+                hash = ((hash << 5) + hash) + (str || '').charCodeAt(i);
+                hash = hash & 0x7fffffff;
+            }
+            return Math.abs(hash);
+        }
+
+        function assignUniqueImagesToList(props) {
+            const map = {};
+            if (!Array.isArray(props) || props.length === 0) return map;
+            const slots = imagePaths.slice();
+            const used = new Set();
+            const list = props.map(p => ({ id: String(p._id || p.externalPropertyId || Math.random()), key: String(extractStreetKey(p.address) || p.address || '') }));
+            list.sort((a, b) => (a.key || '').localeCompare(b.key || ''));
+            for (const item of list) {
+                if (used.size < slots.length) {
+                    let idx = djb2Hash(item.key || item.id) % slots.length;
+                    let tries = 0;
+                    while (used.has(idx) && tries < slots.length) { idx = (idx + 1) % slots.length; tries++; }
+                    if (!used.has(idx)) {
+                        map[item.id] = slots[idx];
+                        used.add(idx);
+                        continue;
+                    }
+                }
+                const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='700'><rect width='100%' height='100%' fill='#243b55'/><text x='50%' y='50%' font-size='40' fill='#fff' text-anchor='middle' dominant-baseline='middle'>${(item.key||item.id).replace(/</g,'').slice(0,30)}</text></svg>`;
+                map[item.id] = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+            }
+            return map;
+        }
+
         const buildListingCard = (property, index) => {
             const totalShares = property.totalShares || 0;
             const availableShares = property.availableShares || 0;
@@ -613,11 +655,9 @@
             const location = [property.city, property.state].filter(Boolean).join(", ") || "Location unavailable";
             const title = (property.address || `Property ${property.externalPropertyId || ""}`).trim();
             const statusMeta = getStatusMeta(property.status);
-            // Prefer server-provided image if available (data URL or hosted), otherwise deterministically pick one
-            let imageUrl = getImageForKey(String(property._id || property.address || index));
-            if (property.images && Array.isArray(property.images) && property.images.length > 0) {
-                imageUrl = property.images[0];
-            }
+            // Prefer server-provided image if available (data URL or hosted), otherwise use assigned unique image or deterministic fallback
+            const idKey = String(property._id || property.externalPropertyId || index);
+            let imageUrl = (property.images && Array.isArray(property.images) && property.images.length > 0) ? property.images[0] : (property.__assignedImage || getImageForKey(String(extractStreetKey(property.address) || idKey)));
 
             return `
                 <div class="listing-card" data-funded-percent="${fundedPercent}" data-funded="${fundedPercent >= 100 ? 'true' : 'false'}">
@@ -705,6 +745,19 @@
 
                 // for "my" listings, show only first 2 items
                 const toRender = mode === 'my' ? properties.slice(0, 2) : properties.slice(0, 10);
+
+                // assign unique images across the rendered set to avoid reuse
+                try {
+                    const assignMap = assignUniqueImagesToList(toRender);
+                    toRender.forEach(p => {
+                        const key = String(p._id || p.externalPropertyId || '');
+                        if (!p.images || !Array.isArray(p.images) || p.images.length === 0) {
+                            p.__assignedImage = assignMap[key] || null;
+                        }
+                    });
+                } catch (err) {
+                    console.warn('Image assignment failed', err);
+                }
 
                 gridEl.innerHTML = toRender
                     .map((property, index) => buildListingCard(property, index))

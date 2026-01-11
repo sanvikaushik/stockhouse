@@ -226,6 +226,14 @@
             "House Images/webaliser-_TPTXZd9mOo-unsplash.jpg"
         ].map(p => encodeURI(p));
 
+        // Extract a deterministic street key from an address: leading number + first street word (e.g. '123 Main St' -> '123_Main')
+        function extractStreetKey(address) {
+            if (!address || typeof address !== 'string') return null;
+            const m = address.trim().match(/^\s*(\d+)\s+([A-Za-z0-9\-]+)/);
+            if (!m) return null;
+            return `${m[1]}_${m[2].toLowerCase()}`;
+        }
+
         // Deterministic image selection based on a property key (id or address)
         function getImageForKey(key) {
             if (!key) return imagePaths[0];
@@ -239,6 +247,51 @@
             return imagePaths[idx];
         }
         let userInvestments = [];
+        let investmentImageMap = {};
+
+        // djb2 hash returning non-negative integer
+        function djb2Hash(str) {
+            let hash = 5381;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) + hash) + str.charCodeAt(i);
+                hash = hash & 0x7fffffff; // keep positive 32-bit
+            }
+            return Math.abs(hash);
+        }
+
+        // Assign unique images to an array of properties (by _id) deterministically.
+        // Returns map { propertyId: imageUrl }
+        function assignUniqueImagesToList(props) {
+            const map = {};
+            if (!Array.isArray(props) || props.length === 0) return map;
+
+            const slots = imagePaths.slice();
+            const used = new Set();
+
+            // create deterministic ordering
+            const list = props.map(p => ({ id: String(p._id || p.externalPropertyId || Math.random()), key: String(extractStreetKey(p.address) || p.address || p._id || '') }));
+            list.sort((a, b) => (a.key || '').localeCompare(b.key || ''));
+
+            for (const item of list) {
+                if (used.size < slots.length) {
+                    // pick start index from hash and find first unused
+                    let idx = djb2Hash(item.key || item.id) % slots.length;
+                    let tries = 0;
+                    while (used.has(idx) && tries < slots.length) { idx = (idx + 1) % slots.length; tries++; }
+                    if (!used.has(idx)) {
+                        map[item.id] = slots[idx];
+                        used.add(idx);
+                        continue;
+                    }
+                }
+
+                // fallback: generate a small SVG data URL unique per id
+                const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='700'><rect width='100%' height='100%' fill='#243b55'/><text x='50%' y='50%' font-size='40' fill='#fff' text-anchor='middle' dominant-baseline='middle'>${(item.key||item.id).replace(/</g,'').slice(0,30)}</text></svg>`;
+                map[item.id] = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+            }
+
+            return map;
+        }
 
         // Switch between tabs
         function switchTab(tabName) {
@@ -267,6 +320,8 @@
                 if (!response.ok) throw new Error('Failed to fetch properties');
                 const data = await response.json();
                 investmentProperties = Array.isArray(data) ? data : (data.properties || []);
+                // prepare unique image mapping for the current property set
+                investmentImageMap = assignUniqueImagesToList(investmentProperties);
                 renderInvestmentCards();
             } catch (error) {
                 console.error('Error fetching investments:', error);
@@ -345,10 +400,8 @@
                                 </div>
                             `;
 
-                        let imageUrl = getImageForKey(String(prop._id || prop.address || idx));
-                        if (prop.images && Array.isArray(prop.images) && prop.images.length > 0) {
-                            imageUrl = prop.images[0];
-                        }
+                        const idKey = String(prop._id || prop.externalPropertyId || idx);
+                        let imageUrl = (prop.images && Array.isArray(prop.images) && prop.images.length > 0) ? prop.images[0] : (investmentImageMap[idKey] || getImageForKey(String(extractStreetKey(prop.address) || idKey)));
 
                         return `
                             <div class="investment-card" id="prop-${prop._id}">
@@ -356,7 +409,7 @@
                                 <div class="investment-header">
                                     <div>
                                         <div class="investment-address">${prop.address}</div>
-                                        <div class="investment-location">📍 ${prop.city}, ${prop.state || 'N/A'} ${prop.zip || ''}</div>
+                                        <div class="investment-location">📍 ${prop.city || ''}${prop.city && prop.state ? ', ' : ''}${prop.state || ''}</div>
                                     </div>
                                     <div class="investment-status">${canBuy ? '✓ Available' : '⊗ Sold Out'}</div>
                                 </div>
@@ -571,11 +624,13 @@
             }
 
             // --- FIXED SECTION BELOW ---
+                // build a unique image map for holdings too to avoid reuse across holdings
+                const holdingsForMap = userInvestments.map(h => ({ _id: h.propertyId, address: h.address }));
+                const holdingImageMap = assignUniqueImagesToList(holdingsForMap);
+
                 grid.innerHTML = userInvestments.map((holding, idx) => {
-                let imageUrl = getImageForKey(String(holding.propertyId || holding.address || idx));
-                if (holding.images && Array.isArray(holding.images) && holding.images.length > 0) {
-                    imageUrl = holding.images[0];
-                }
+                const holdingIdKey = String(holding.propertyId || idx);
+                let imageUrl = (holding.images && Array.isArray(holding.images) && holding.images.length > 0) ? holding.images[0] : (holdingImageMap[holdingIdKey] || getImageForKey(String(extractStreetKey(holding.address) || holdingIdKey)));
                 const holdingId = holding.propertyId || idx;
                 return `
                     <div class="investment-card" id="holding-${holdingId}">
@@ -583,7 +638,7 @@
                         <div class="investment-header">
                             <div>
                                 <div class="investment-address">${holding.address}</div>
-                                <div class="investment-location">📍 ${holding.city}, ${holding.state}</div>
+                                <div class="investment-location">📍 ${holding.city || ''}${holding.city && holding.state ? ', ' : ''}${holding.state || ''}</div>
                             </div>
                             <div class="investment-status" style="background: rgba(59, 130, 246, 0.1); color: var(--accent);">
                                 Portfolio Holding
