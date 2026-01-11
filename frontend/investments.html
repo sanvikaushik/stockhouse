@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Investments - StockHouse</title>
+    <title>Investments - BrickbyBrick</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
     <style>
@@ -148,7 +148,10 @@
         <nav class="container">
             <div class="logo" onclick="window.location.href='index.html'">
                 <div class="logo-icon">🏠</div>
-                <span>StockHouse</span>
+                <span>BrickbyBrick</span>
+            </div>
+            <div id="walletDisplay" style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); padding: 8px 16px; border-radius: 50px; color: var(--success); font-weight: 700;">
+                Wallet: Loading...
             </div>
             <ul class="nav-links">
                 <li><a href="index.html">Home</a></li>
@@ -197,7 +200,7 @@
                     </div>
 
                     <div id="advisorChat" style="background:var(--secondary); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:12px;">
-                        <div style="font-weight:700; margin-bottom:8px;">StockHouse Advisor</div>
+                        <div style="font-weight:700; margin-bottom:8px;">BrickbyBrick Advisor</div>
                         <div id="chatMessages" style="height:260px; overflow:auto; padding:8px; background:rgba(255,255,255,0.02); border-radius:8px; margin-bottom:8px;"></div>
                         <div style="display:flex; gap:8px;">
                             <input id="chatInput" placeholder="Ask the advisor a question..." style="flex:1; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:rgba(255,255,255,0.02); color:var(--text-primary);" />
@@ -228,7 +231,7 @@
                 <div class="footer-section"><h4>Resources</h4><ul class="footer-links"><li><a href="#">Documentation</a></li><li><a href="#">Help Center</a></li><li><a href="#">API</a></li></ul></div>
                 <div class="footer-section"><h4>Legal</h4><ul class="footer-links"><li><a href="#">Privacy Policy</a></li><li><a href="#">Terms of Service</a></li></ul></div>
             </div>
-            <div class="footer-bottom"><p>&copy; 2026 StockHouse. All rights reserved.</p></div>
+            <div class="footer-bottom"><p>&copy; 2026 BrickbyBrick. All rights reserved.</p></div>
         </div>
     </footer>
 
@@ -505,77 +508,38 @@
         }
 
         // Save purchase to database
-        async function savePurchase(propertyId, address, shareCount, sharePrice, totalCost) {
+                async function savePurchase(propertyId, address, shareCount, sharePrice, totalCost) {
             const userId = localStorage.getItem('userId');
             const token = localStorage.getItem('authToken');
             
-            if (!userId) {
-                alert('❌ Please log in to make a purchase');
-                window.location.href = 'index.html';
-                return;
-            }
-
             try {
-                const response = await fetch('http://localhost:3001/properties/buy', {
+                const response = await fetch('http://localhost:3001/properties/purchase', { // FIX: Use /purchase
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        propertyId,
                         userId,
-                        shareCount,
-                        sharePrice,
-                        totalCost,
-                        address
+                        propertyId,
+                        sharesToBuy: shareCount, // Key name change to match backend
+                        isResident: false
                     })
                 });
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Purchase failed');
-                }
-
                 const result = await response.json();
-                alert(`✅ Purchase successful!\n\n${shareCount} shares of ${address} purchased for $${Math.round(totalCost).toLocaleString('en-US')}\n\nTransaction ID: ${result.transactionId || 'pending'}`);
-                
-                // Reset input
-                document.getElementById(`shares-${propertyId}`).value = 0;
-                updateInvestmentCalculation(propertyId, sharePrice, 200, 10000);
 
-                // Update local cached investments for the user so "My Investments" reflects the purchase
-                const updatedInv = result.updatedInvestment;
-                const userKey = `investments_${userId}`;
-                const existing = JSON.parse(localStorage.getItem(userKey) || '[]');
-                const prop = investmentProperties.find(p => String(p._id) === String(propertyId));
-
-                if (updatedInv && prop) {
-                    const holding = {
-                        propertyId: String(updatedInv.propertyId || propertyId),
-                        address: prop.address || address,
-                        city: prop.city || '',
-                        state: prop.state || '',
-                        zip: prop.zip || '',
-                        shareCount: updatedInv.shareCount,
-                        sharePrice: updatedInv.sharePrice,
-                        totalValue: updatedInv.totalCost,
-                        purchaseDate: updatedInv.purchaseDate || new Date(),
-                        ownershipPercent: updatedInv.ownershipPercent
-                    };
-
-                    // Replace or add
-                    const idx = existing.findIndex(h => String(h.propertyId) === String(holding.propertyId));
-                    if (idx > -1) existing[idx] = holding; else existing.push(holding);
-                    localStorage.setItem(userKey, JSON.stringify(existing));
+                if (response.ok) {
+                    alert(`✅ Purchase successful!\nNew Balance: $${Math.round(result.newBalance).toLocaleString()}`);
+                    
+                    // UI REFRESH
+                    updateWalletUI(); // Update the header balance
+                    fetchInvestmentProperties(); // Refresh available pool
+                    loadUserInvestments(); // Refresh portfolio tab
+                } else {
+                    throw new Error(result.error || 'Purchase failed');
                 }
-
-                // Refresh properties list
-                fetchInvestmentProperties();
-                // Refresh My Investments tab UI
-                loadUserInvestments();
             } catch (error) {
-                console.error('Purchase error:', error);
                 alert(`❌ Purchase failed: ${error.message}`);
             }
         }
@@ -649,6 +613,19 @@
             }).join('');
         }
 
+        async function updateWalletUI() {
+            const userId = localStorage.getItem('userId');
+            if (!userId) return;
+
+            try {
+                const response = await fetch(`http://localhost:3001/wallet/balance/${userId}`);
+                const data = await response.json();
+                document.getElementById('walletDisplay').textContent = `Wallet: $${Math.round(data.balance).toLocaleString()}`;
+            } catch (err) {
+                console.error('Failed to fetch balance:', err);
+            }
+        }
+
         // Check authentication on page load
         function checkLoginStatus() {
             const logoutBtn = document.getElementById('logoutBtn');
@@ -660,6 +637,7 @@
                 logoutBtn.style.display = 'block';
             }
             
+            updateWalletUI(); // Fetch initial balance
             fetchInvestmentProperties();
         }
 
