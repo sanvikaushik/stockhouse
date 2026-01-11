@@ -546,6 +546,18 @@
             "House Images/webaliser-_TPTXZd9mOo-unsplash.jpg"
         ].map((path) => encodeURI(path));
 
+        // Deterministic image selection based on a property key (id or address)
+        function getImageForKey(key) {
+            if (!key) return imagePaths[0];
+            let hash = 5381;
+            for (let i = 0; i < key.length; i++) {
+                hash = ((hash << 5) + hash) + key.charCodeAt(i);
+                hash = hash & hash; // keep 32-bit
+            }
+            const idx = Math.abs(hash) % imagePaths.length;
+            return imagePaths[idx];
+        }
+
         const currencyFormatter = new Intl.NumberFormat("en-US", {
             style: "currency",
             currency: "USD",
@@ -601,10 +613,9 @@
             const location = [property.city, property.state].filter(Boolean).join(", ") || "Location unavailable";
             const title = (property.address || `Property ${property.externalPropertyId || ""}`).trim();
             const statusMeta = getStatusMeta(property.status);
-            // Prefer server-provided image if available (data URL or hosted), fallback to bundled images
-            let imageUrl = imagePaths[index % imagePaths.length];
+            // Prefer server-provided image if available (data URL or hosted), otherwise deterministically pick one
+            let imageUrl = getImageForKey(String(property._id || property.address || index));
             if (property.images && Array.isArray(property.images) && property.images.length > 0) {
-                // use first image value (could be a data URL)
                 imageUrl = property.images[0];
             }
 
