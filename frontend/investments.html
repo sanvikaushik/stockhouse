@@ -316,7 +316,7 @@
             }
         }
 
-        // Render investment cards
+
         // Render investment cards with Demo-Specific Randomized Baselines
         function renderInvestmentCards() {
             const grid = document.getElementById('investmentsGrid');
@@ -328,7 +328,6 @@
             }
 
             const userType = localStorage.getItem('userType');
-            console.log('Rendering cards for user type:', userType);
 
             grid.innerHTML = investmentProperties.map((prop, idx) => {
                 // 1. Data Parsing
@@ -340,14 +339,14 @@
                 const soldPercentActual = 100 - availablePercent;
 
                 // 3. === DEMO FEATURE: Deterministic Randomized 51% - 89% Baseline ===
-                // This creates a consistent "Starting Percentage" for each house based on its ID
+                // Using property ID as a seed ensures the baseline stays the same for each house
                 const propSeed = prop._id ? prop._id.split('').reduce((a, b) => a + b.charCodeAt(0), 0) : idx;
-                const demoBaseline = 51 + (propSeed % 41); // Pick a number from 51 to 89
+                const demoBaseline = 51 + (propSeed % 39); // Pick a number from 51 to 89
                 
                 // Total Progress = Randomized Homeowner Baseline + Real Community Purchases
                 const totalFundedPercent = Math.min(demoBaseline + soldPercentActual, 100);
 
-                // 4. Buying Logic & Caps
+                // 4. Buying Logic & Caps (Fixed: Defined before use)
                 const maxUserCap = prop.perUserShareCap || 200;
                 const canBuy = availableShares > 0;
                 const investorAllowed = userType == 'investor';
@@ -372,34 +371,16 @@
                         </div>
 
                         <div class="calculation-display">
-                            <div class="calc-row">
-                                <span class="calc-label">Share Price:</span>
-                                <span>$${Math.round(prop.sharePrice).toLocaleString('en-US')}</span>
-                            </div>
-                            <div class="calc-row">
-                                <span class="calc-label">Quantity:</span>
-                                <span id="qty-${prop._id}">0 shares</span>
-                            </div>
-                            <div class="calc-row">
-                                <span class="calc-label">Total Cost:</span>
-                                <span id="total-${prop._id}">$0</span>
-                            </div>
+                            <div class="calc-row"><span class="calc-label">Share Price:</span><span>$${Math.round(prop.sharePrice).toLocaleString('en-US')}</span></div>
+                            <div class="calc-row"><span class="calc-label">Quantity:</span><span id="qty-${prop._id}">0 shares</span></div>
+                            <div class="calc-row"><span class="calc-label">Total Cost:</span><span id="total-${prop._id}">$0</span></div>
                         </div>
 
                         <button class="buy-btn" id="btn-${prop._id}" onclick="buyShares('${prop._id}', '${prop.address}', ${prop.sharePrice})" disabled>
                             Buy Now
-                        </button>
-                        `
-                        : `
-                        <div class="error-message">
-                            🔒 You must be an investor to purchase shares.
-                        </div>
-                        `)
-                    : `
-                        <div class="error-message">
-                            🔒 Fully allocated. Join the waitlist for the secondary market!
-                        </div>
-                    `;
+                        </button>`
+                        : `<div class="error-message">🔒 Investor access only.</div>`)
+                    : `<div class="error-message">🔒 Fully allocated.</div>`;
 
                 // 5. Asset Visuals (Image logic)
                 const streetKey = extractStreetNumber(prop.address) || String(prop._id || idx);
@@ -414,38 +395,23 @@
                         <div class="investment-header">
                             <div>
                                 <div class="investment-address">${prop.address}</div>
-                                <div class="investment-location">📍 ${prop.city || ''}${prop.city && prop.state ? ', ' : ''}${prop.state || ''}</div>
+                                <div class="investment-location">📍 ${prop.city || ''}, ${prop.state || ''}</div>
                             </div>
                             <div class="investment-status">${canBuy ? '✓ Available' : '⊗ Sold Out'}</div>
                         </div>
 
                         <div class="investment-details">
-                            <div class="detail-item">
-                                <div class="detail-label">Share Price</div>
-                                <div class="detail-value">$${Math.round(prop.sharePrice).toLocaleString('en-US')}</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Valuation</div>
-                                <div class="detail-value">$${Math.round(prop.valuation).toLocaleString('en-US')}</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Available</div>
-                                <div class="detail-value">${availableShares}/${totalShares}</div>
-                            </div>
+                            <div class="detail-item"><div class="detail-label">Share Price</div><div class="detail-value">$${Math.round(prop.sharePrice).toLocaleString('en-US')}</div></div>
+                            <div class="detail-item"><div class="detail-label">Valuation</div><div class="detail-value">$${Math.round(prop.valuation).toLocaleString('en-US')}</div></div>
+                            <div class="detail-item"><div class="detail-label">Available</div><div class="detail-value">${availableShares}/${totalShares}</div></div>
                         </div>
 
                         <div class="investment-progress">
-                            <div class="progress-label">
-                                <span>Total Equity Funded</span>
-                                <span>${totalFundedPercent.toFixed(1)}%</span>
-                            </div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${totalFundedPercent}%"></div>
-                            </div>
+                            <div class="progress-label"><span>Total Equity Funded</span><span>${totalFundedPercent.toFixed(1)}%</span></div>
+                            <div class="progress-bar"><div class="progress-fill" style="width: ${totalFundedPercent}%"></div></div>
                         </div>
 
                         ${buySection}
-                        
                         <button class="btn btn-secondary" style="width:100%; margin-top:10px; font-size:12px; padding:8px;" onclick="syncProperty('${prop._id}')">
                             🔄 Sync Oracle Price
                         </button>
@@ -453,7 +419,6 @@
                 `;
             }).join('');
         }
-
         // Calculate and display purchase details
         function updateInvestmentCalculation(propertyId, sharePrice, maxUserCap, availableShares) {
             const input = document.getElementById(`shares-${propertyId}`);
@@ -739,7 +704,7 @@
             box.scrollTop = box.scrollHeight;
         }
 
-async function sendChatMessage() {
+        async function sendChatMessage() {
             const input = document.getElementById('chatInput');
             const text = (input.value || '').trim();
             if (!text) return;
@@ -747,59 +712,37 @@ async function sendChatMessage() {
             appendChatMessage('You', text);
             input.value = '';
             
+            // Add a temporary "Thinking" ID
+            const thinkingId = 'thinking-' + Date.now();
+            appendChatMessage('Advisor', `<span id="${thinkingId}">Thinking...</span>`);
+            
             const sendBtn = document.getElementById('chatSend');
             sendBtn.disabled = true;
-            sendBtn.textContent = '...';
-            
-            appendChatMessage('Advisor', 'Thinking...');
 
             try {
-                const payload = { 
-                    message: text, 
-                    context: window.__stockhouse_ranking_context || {} 
-                };
-                
-                console.log('Sending chat request to:', `${API_BASE}/api/chat`);
-                
-                const res = await fetch(CHAT_API, {
+                const res = await fetch(`${API_BASE}/api/chat`, {
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ 
+                        message: text, 
+                        // Citing the global ranking context built in your script
+                        context: window.__stockhouse_ranking_context || {} 
+                    })
                 });
                 
-                console.log('Response status:', res.status);
+                const data = await res.json();
                 
-                if (!res.ok) {
-                    const errorText = await res.text();
-                    console.error('Chat error response:', errorText);
-                    throw new Error(`Server error: ${res.status}`);
-                }
+                // Remove the "Thinking..." block
+                const thinkingEl = document.getElementById(thinkingId);
+                if (thinkingEl) thinkingEl.closest('div').parentElement.remove();
                 
-                const contentType = res.headers.get('content-type') || '';
-                const data = contentType.includes('application/json') ? await res.json() : { reply: await res.text() };
-                console.log('Chat response:', data);
-                
-                // Remove "Thinking..." message
-                const box = document.getElementById('chatMessages');
-                if (box.lastChild) box.removeChild(box.lastChild);
-                
-                if (!res.ok) {
-                    appendChatMessage('Advisor', data.reply || `Server error (${res.status}). Please try again later.`);
-                    return;
-                }
-                
-                appendChatMessage('Advisor', data.reply || 'Sorry, I could not generate a response.');
+                appendChatMessage('Advisor', data.reply);
             } catch (err) {
-                console.error('Chat send error:', err);
-                
-                // Remove "Thinking..." message
-                const box = document.getElementById('chatMessages');
-                if (box.lastChild) box.removeChild(box.lastChild);
-                
-                appendChatMessage('Advisor', `Error: ${err.message}. Please check that the backend is running and the API key is configured.`);
+                console.error('Advisor Error:', err);
+                const thinkingEl = document.getElementById(thinkingId);
+                if (thinkingEl) thinkingEl.textContent = "Error: Could not reach the P2P network.";
             } finally {
                 sendBtn.disabled = false;
-                sendBtn.textContent = 'Send';
             }
         }
 
