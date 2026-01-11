@@ -44,12 +44,13 @@ print(f"\nExample: Buy 0.1 shares of first property costs ${df.iloc[0]['stock_pr
 
 # ingest endpoint
 ingest_url = 'http://localhost:3001/properties/ingest'
+delete_url = 'http://localhost:3001/properties/clear'
 
 # convert dataframe to list of dicts for JSON serialization
 rows = df.to_dict(orient='records')
 
 # truncate to at most 100 rows to avoid large payloads / 413 errors
-rows = rows[:100]
+rows = rows[:10]
 
 # prepare payload (users decide quantity at listed stock_price)
 payload = {'rows': rows}
