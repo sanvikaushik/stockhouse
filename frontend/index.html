@@ -465,10 +465,19 @@
                 if (response.ok) {
                     localStorage.setItem('authToken', data.token);
                     localStorage.setItem('userId', data.userId);
-                    localStorage.setItem('userType', data.userType); 
-                    
+                    localStorage.setItem('userType', data.userType);
+
+                    // store name/email if returned by backend
+                    const firstName = data.firstName || data.first_name || '';
+                    const lastName = data.lastName || data.last_name || '';
+                    if (firstName) localStorage.setItem('firstName', firstName);
+                    if (lastName) localStorage.setItem('lastName', lastName);
+                    if (data.email) localStorage.setItem('email', data.email);
+
                     alert('Login successful!');
-                    window.location.href = 'investments.html';
+                    const userType = data.userType || localStorage.getItem('userType');
+                    const redirectUrl = userType === 'homeowner' ? 'dashboard.html' : 'investments.html';
+                    window.location.href = redirectUrl;
                 } else {
                     alert(data.error || 'Login failed');
                 }
@@ -496,10 +505,17 @@
                     // FIX: Use the token returned by the updated backend
                     localStorage.setItem('authToken', data.token);
                     localStorage.setItem('userId', data.userId);
-                    localStorage.setItem('userType', data.userType); 
-                    
+                    localStorage.setItem('userType', data.userType);
+
+                    // save name/email from the signup form (userDetails)
+                    if (userDetails.firstName) localStorage.setItem('firstName', userDetails.firstName);
+                    if (userDetails.lastName) localStorage.setItem('lastName', userDetails.lastName);
+                    if (userDetails.email) localStorage.setItem('email', userDetails.email);
+
                     alert('Account created successfully!');
-                    window.location.href = 'investments.html';
+                    const userType = data.userType || localStorage.getItem('userType');
+                    const redirectUrl = userType === 'homeowner' ? 'dashboard.html' : 'investments.html';
+                    window.location.href = redirectUrl;
                 } else {
                     alert(data.error || 'Signup failed');
                 }
@@ -540,6 +556,9 @@
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('userId');
                 localStorage.removeItem('userType');
+                    localStorage.removeItem('firstName');
+                    localStorage.removeItem('lastName');
+                    localStorage.removeItem('email');
                 const loginBtn = document.getElementById('loginBtn');
                 const signupBtn = document.getElementById('signupBtn');
                 const logoutBtn = document.getElementById('logoutBtn');

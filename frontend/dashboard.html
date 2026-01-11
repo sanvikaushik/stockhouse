@@ -334,23 +334,23 @@
                 <form onsubmit="handleProfileUpdate(event)">
                     <div class="form-group">
                         <label for="editFirstName">First Name</label>
-                        <input type="text" id="editFirstName" value="Sarah" required>
+                        <input type="text" id="editFirstName" value="" required>
                     </div>
                     <div class="form-group">
                         <label for="editLastName">Last Name</label>
-                        <input type="text" id="editLastName" value="Owner" required>
+                        <input type="text" id="editLastName" value="" required>
                     </div>
                     <div class="form-group">
                         <label for="editEmail">Email Address</label>
-                        <input type="email" id="editEmail" value="sarah.owner@example.com" required>
+                        <input type="email" id="editEmail" value="" required>
                     </div>
                     <div class="form-group">
                         <label for="editPhone">Phone Number</label>
-                        <input type="tel" id="editPhone" value="+1 (555) 123-4567">
+                        <input type="tel" id="editPhone" value="">
                     </div>
                     <div class="form-group">
                         <label for="editBio">Bio</label>
-                        <textarea id="editBio" placeholder="Tell us about yourself...">Property owner with a passion for real estate investment and sustainable housing solutions.</textarea>
+                        <textarea id="editBio" placeholder="Tell us about yourself..."></textarea>
                     </div>
                     <button type="submit" class="submit-btn">Save Changes</button>
                 </form>
@@ -370,8 +370,8 @@
             </ul>
             <div class="user-section">
                 <div class="profile-btn" onclick="openProfileModal()">
-                    <div class="profile-photo">SO</div>
-                    <span class="profile-name">Sarah Owner</span>
+                    <div class="profile-photo" id="profilePhoto">U</div>
+                    <span class="profile-name" id="profileName">User</span>
                 </div>
                 <button class="btn btn-secondary" onclick="handleLogout()">Log Out</button>
             </div>
@@ -384,7 +384,7 @@
             <!-- DASHBOARD HEADER -->
             <div class="dashboard-header">
                 <div class="container">
-                    <h1 class="dashboard-title">Welcome back, Sarah! 👋</h1>
+                    <h1 class="dashboard-title">Welcome back, <span id="greetingName">User</span>! 👋</h1>
                     <p class="dashboard-subtitle">Here's an overview of your property portfolio</p>
                 </div>
             </div>
@@ -595,6 +595,11 @@
                 localStorage.removeItem('userId');
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('currentUser');
+                localStorage.removeItem('firstName');
+                localStorage.removeItem('lastName');
+                localStorage.removeItem('email');
+                localStorage.removeItem('phone');
+                localStorage.removeItem('bio');
                 // Clear any transient session storage
                 sessionStorage.clear();
             } catch (err) {
@@ -609,7 +614,78 @@
             }
         }
 
-        document.addEventListener("DOMContentLoaded", loadListings);
+        // Profile modal helpers
+        function openProfileModal() {
+            const overlay = document.getElementById('profileModal');
+            if (overlay) overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            populateProfileFromStorage();
+        }
+
+        function closeProfileModal() {
+            const overlay = document.getElementById('profileModal');
+            if (overlay) overlay.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        function populateProfileFromStorage() {
+            const first = localStorage.getItem('firstName') || '';
+            const last = localStorage.getItem('lastName') || '';
+            const email = localStorage.getItem('email') || '';
+            const phone = localStorage.getItem('phone') || '';
+            const bio = localStorage.getItem('bio') || '';
+
+            const initials = ((first[0] || '') + (last[0] || '')).toUpperCase() || 'U';
+            const photoEl = document.getElementById('profilePhoto');
+            const nameEl = document.getElementById('profileName');
+            const greetEl = document.getElementById('greetingName');
+
+            if (photoEl) photoEl.textContent = initials;
+            if (nameEl) nameEl.textContent = (first || last) ? `${first} ${last}`.trim() : 'User';
+            if (greetEl) greetEl.textContent = first || 'User';
+
+            const firstInput = document.getElementById('editFirstName');
+            const lastInput = document.getElementById('editLastName');
+            const emailInput = document.getElementById('editEmail');
+            const phoneInput = document.getElementById('editPhone');
+            const bioInput = document.getElementById('editBio');
+
+            if (firstInput) firstInput.value = first;
+            if (lastInput) lastInput.value = last;
+            if (emailInput) emailInput.value = email;
+            if (phoneInput) phoneInput.value = phone;
+            if (bioInput) bioInput.value = bio;
+        }
+
+        function handleProfileUpdate(event) {
+            event.preventDefault();
+            const firstInput = document.getElementById('editFirstName');
+            const lastInput = document.getElementById('editLastName');
+            const emailInput = document.getElementById('editEmail');
+            const phoneInput = document.getElementById('editPhone');
+            const bioInput = document.getElementById('editBio');
+
+            const first = firstInput ? firstInput.value.trim() : '';
+            const last = lastInput ? lastInput.value.trim() : '';
+            const email = emailInput ? emailInput.value.trim() : '';
+            const phone = phoneInput ? phoneInput.value.trim() : '';
+            const bio = bioInput ? bioInput.value.trim() : '';
+
+            if (first) localStorage.setItem('firstName', first); else localStorage.removeItem('firstName');
+            if (last) localStorage.setItem('lastName', last); else localStorage.removeItem('lastName');
+            if (email) localStorage.setItem('email', email); else localStorage.removeItem('email');
+            if (phone) localStorage.setItem('phone', phone); else localStorage.removeItem('phone');
+            if (bio) localStorage.setItem('bio', bio); else localStorage.removeItem('bio');
+
+            populateProfileFromStorage();
+            closeProfileModal();
+            alert('Profile updated locally.');
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadListings();
+            populateProfileFromStorage();
+        });
     </script>
 </body>
 </html>
