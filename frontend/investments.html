@@ -290,7 +290,8 @@
 
                     grid.innerHTML = investmentProperties.map((prop, idx) => {
                         const availablePercent = (prop.availableShares / prop.totalShares) * 100;
-                        const soldPercent = 100 - availablePercent;
+                        const soldPercentActual = 100 - availablePercent;
+                        const totalFundedPercent = Math.min(51 + soldPercentActual, 100);
                         const maxUserCap = prop.perUserShareCap || 200;
                         const canBuy = prop.availableShares > 0;
                         const investorAllowed = userType == 'investor';
@@ -375,10 +376,10 @@
                                 <div class="investment-progress">
                                     <div class="progress-label">
                                         <span>Shares Sold</span>
-                                        <span>${soldPercent.toFixed(1)}%</span>
+                                        <span>${totalFundedPercent.toFixed(1)}%</span>
                                     </div>
                                     <div class="progress-bar">
-                                        <div class="progress-fill" style="width: ${soldPercent}%"></div>
+                                        <div class="progress-fill" style="width: ${totalFundedPercent}%"></div>
                                     </div>
                                 </div>
 

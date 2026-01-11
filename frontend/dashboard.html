@@ -526,9 +526,11 @@
             const totalShares = property.totalShares || 0;
             const availableShares = property.availableShares || 0;
             const fundedShares = Math.max(totalShares - availableShares, 0);
-            const fundedPercent = totalShares
-                ? Math.round((fundedShares / totalShares) * 100)
-                : 0;
+            const fundedPercentActual = totalShares ? (fundedShares / totalShares) * 100 : 0;
+            // starting baseline of 51% for every property
+            const totalFundedPercent = Math.min(51 + fundedPercentActual, 100);
+            const fundedPercent = Math.round(totalFundedPercent);
+            const totalFundedShares = Math.min(totalShares, fundedShares + (0.51 * totalShares));
             const sharePrice = typeof property.sharePrice === "number" ? property.sharePrice : 0;
             const valuation = typeof property.valuation === "number"
                 ? property.valuation
@@ -565,7 +567,7 @@
                         <div class="listing-price">
                             <div class="price-label">Property Value</div>
                             <div class="price-value">${formatCurrency(valuation || 0)}</div>
-                            <div class="price-per-share">${formatNumber(fundedShares)} shares funded</div>
+                            <div class="price-per-share">${formatNumber(Math.round(totalFundedShares))} shares funded</div>
                         </div>
                         <div class="listing-ownership">
                             <div class="ownership-header">
@@ -782,8 +784,12 @@
             const propsOwned = propsArray.length;
             const totalValue = propsArray.reduce((s, p) => s + (Number(p.valuation) || 0), 0);
             const totalRaised = propsArray.reduce((s, p) => {
-                const funded = (Number(p.totalShares) || 0) - (Number(p.availableShares) || 0);
-                return s + (funded * (Number(p.sharePrice) || 0));
+                const totalShares = Number(p.totalShares) || 0;
+                const available = Number(p.availableShares) || 0;
+                const funded = Math.max(totalShares - available, 0);
+                const initialShares = totalShares * 0.51; // baseline 51%
+                const combinedShares = Math.min(totalShares, initialShares + funded);
+                return s + (combinedShares * (Number(p.sharePrice) || 0));
             }, 0);
 
             if (propsOwnedEl) propsOwnedEl.textContent = String(propsOwned);
