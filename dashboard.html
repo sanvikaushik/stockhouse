@@ -171,6 +171,15 @@
         .btn-invest { background: var(--accent); color: white; }
         .btn-invest:hover { background: var(--accent-hover); transform: translateY(-2px); }
 
+        .empty-state {
+            grid-column: 1 / -1;
+            padding: 24px;
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
         /* FOOTER */
         footer {
             background: var(--secondary);
@@ -431,109 +440,152 @@
                             <button class="filter-tab">Seeking Investment</button>
                         </div>
                     </div>
-                    <div class="listings-grid">
-                        <!-- Property 1 -->
-                        <div class="listing-card">
-                            <div class="listing-image" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3)), url('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400') center/cover;">
-                                <span class="listing-status status-owned">My Property</span>
+                    <div class="listings-grid" id="listings-grid">
+                        <div class="empty-state">Loading listings...</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = window.STOCKHOUSE_API || "http://localhost:3001";
+        const imagePaths = [
+            "House Images/architecture-3414399_1280.jpg",
+            "House Images/holiday-home-177401_1280.jpg",
+            "House Images/house-3133771_1280.jpg",
+            "House Images/house-3150500_1280.jpg",
+            "House Images/house-4304096_1280.jpg",
+            "House Images/house-4384774_1280.jpg",
+            "House Images/house-4498947_1280.jpg",
+            "House Images/iceland-4524112_1280.jpg",
+            "House Images/irkutsk-3237561_1280.jpg",
+            "House Images/large-home-389271_1280.jpg"
+        ].map((path) => encodeURI(path));
+
+        const currencyFormatter = new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits: 0
+        });
+
+        const numberFormatter = new Intl.NumberFormat("en-US");
+
+        const listingsGrid = document.getElementById("listings-grid");
+
+        const getStatusMeta = (status) => {
+            if (status === "fully_allocated") {
+                return { label: "Fully Allocated", className: "status-sold" };
+            }
+            if (status === "paused") {
+                return { label: "Paused", className: "status-owned" };
+            }
+            return { label: "Available", className: "status-available" };
+        };
+
+        const formatCurrency = (value) => {
+            if (typeof value !== "number" || Number.isNaN(value)) {
+                return "$0";
+            }
+            return currencyFormatter.format(value);
+        };
+
+        const formatNumber = (value) => {
+            if (typeof value !== "number" || Number.isNaN(value)) {
+                return "0";
+            }
+            return numberFormatter.format(value);
+        };
+
+        const buildListingCard = (property, index) => {
+            const totalShares = property.totalShares || 0;
+            const availableShares = property.availableShares || 0;
+            const fundedShares = Math.max(totalShares - availableShares, 0);
+            const fundedPercent = totalShares
+                ? Math.round((fundedShares / totalShares) * 100)
+                : 0;
+            const sharePrice = typeof property.sharePrice === "number" ? property.sharePrice : 0;
+            const valuation = typeof property.valuation === "number"
+                ? property.valuation
+                : sharePrice * totalShares;
+            const location = [property.city, property.state].filter(Boolean).join(", ") || "Location unavailable";
+            const title = (property.address || `Property ${property.externalPropertyId || ""}`).trim();
+            const statusMeta = getStatusMeta(property.status);
+            const imageUrl = imagePaths[index % imagePaths.length];
+
+            return `
+                <div class="listing-card">
+                    <div class="listing-image" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3)), url('${imageUrl}') center/cover;">
+                        <span class="listing-status ${statusMeta.className}">${statusMeta.label}</span>
+                    </div>
+                    <div class="listing-content">
+                        <div class="listing-header">
+                            <h3 class="listing-title">${title}</h3>
+                            <div class="listing-location">📍 ${location}</div>
+                        </div>
+                        <div class="listing-details">
+                            <div class="detail-item">
+                                <div class="detail-value">${formatNumber(totalShares)}</div>
+                                <div class="detail-label">Total Shares</div>
                             </div>
-                            <div class="listing-content">
-                                <div class="listing-header">
-                                    <h3 class="listing-title">Modern Downtown Loft</h3>
-                                    <div class="listing-location">📍 Austin, TX</div>
-                                </div>
-                                <div class="listing-details">
-                                    <div class="detail-item">
-                                        <div class="detail-value">3</div>
-                                        <div class="detail-label">Beds</div>
-                                    </div>
-                                    <div class="detail-item">
-                                        <div class="detail-value">2</div>
-                                        <div class="detail-label">Baths</div>
-                                    </div>
-                                    <div class="detail-item">
-                                        <div class="detail-value">1,850</div>
-                                        <div class="detail-label">Sq Ft</div>
-                                    </div>
-                                </div>
-                                <div class="listing-price">
-                                    <div class="price-label">Property Value</div>
-                                    <div class="price-value">$500,000</div>
-                                    <div class="price-per-share">12 investors • $425,000 raised</div>
-                                </div>
-                                <div class="listing-ownership">
-                                    <div class="ownership-header">
-                                        <span>Investment Funded</span>
-                                        <span>85%</span>
-                                    </div>
-                                    <div class="ownership-bar">
-                                        <div class="ownership-fill" style="width: 85%;"></div>
-                                    </div>
-                                </div>
-                                <div class="listing-actions">
-                                    <button class="action-btn btn-view">View Details</button>
-                                    <button class="action-btn btn-manage">Manage</button>
-                                </div>
+                            <div class="detail-item">
+                                <div class="detail-value">${formatNumber(availableShares)}</div>
+                                <div class="detail-label">Available</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-value">${formatCurrency(sharePrice)}</div>
+                                <div class="detail-label">Per Share</div>
                             </div>
                         </div>
-
-                        <!-- Property 2 -->
-                        <div class="listing-card">
-                            <div class="listing-image" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3)), url('https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400') center/cover;">
-                                <span class="listing-status status-owned">My Property</span>
+                        <div class="listing-price">
+                            <div class="price-label">Property Value</div>
+                            <div class="price-value">${formatCurrency(valuation || 0)}</div>
+                            <div class="price-per-share">${formatNumber(fundedShares)} shares funded</div>
+                        </div>
+                        <div class="listing-ownership">
+                            <div class="ownership-header">
+                                <span>Investment Funded</span>
+                                <span>${fundedPercent}%</span>
                             </div>
-                            <div class="listing-content">
-                                <div class="listing-header">
-                                    <h3 class="listing-title">Lakeside Villa</h3>
-                                    <div class="listing-location">📍 Lake Tahoe, CA</div>
-                                </div>
-                                <div class="listing-details">
-                                    <div class="detail-item">
-                                        <div class="detail-value">5</div>
-                                        <div class="detail-label">Beds</div>
-                                    </div>
-                                    <div class="detail-item">
-                                        <div class="detail-value">4</div>
-                                        <div class="detail-label">Baths</div>
-                                    </div>
-                                    <div class="detail-item">
-                                        <div class="detail-value">3,400</div>
-                                        <div class="detail-label">Sq Ft</div>
-                                    </div>
-                                </div>
-                                <div class="listing-price">
-                                    <div class="price-label">Property Value</div>
-                                    <div class="price-value">$1,200,000</div>
-                                    <div class="price-per-share">8 investors • $720,000 raised</div>
-                                </div>
-                                <div class="listing-ownership">
-                                    <div class="ownership-header">
-                                        <span>Investment Funded</span>
-                                        <span>60%</span>
-                                    </div>
-                                    <div class="ownership-bar">
-                                        <div class="ownership-fill" style="width: 60%;"></div>
-                                    </div>
-                                </div>
-                                <div class="listing-actions">
-                                    <button class="action-btn btn-view">View Details</button>
-                                    <button class="action-btn btn-manage">Manage</button>
-                                </div>
+                            <div class="ownership-bar">
+                                <div class="ownership-fill" style="width: ${fundedPercent}%;"></div>
                             </div>
                         </div>
+                        <div class="listing-actions">
+                            <button class="action-btn btn-view">View Details</button>
+                            <button class="action-btn btn-invest">Invest</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
 
-                        <!-- Property 3 -->
-                        <div class="listing-card">
-                            <div class="listing-image" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3)), url('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400') center/cover;">
-                                <span class="listing-status status-owned">My Property</span>
-                            </div>
-                            <div class="listing-content">
-                                <div class="listing-header">
-                                    <h3 class="listing-title">Historic Brownstone</h3>
-                                    <div class="listing-location">📍 Boston, MA</div>
-                                </div>
-                                <div class="listing-details">
-                                    <div class="detail-item">
-                                        <div class="detail-value">4</div>
-                                        <div class="detail-label">Beds</div>
-                                    </div>
+        const loadListings = async () => {
+            listingsGrid.innerHTML = "<div class=\"empty-state\">Loading listings...</div>";
+
+            try {
+                const response = await fetch(`${API_BASE}/properties?limit=10`);
+                if (!response.ok) {
+                    throw new Error(`Request failed: ${response.status}`);
+                }
+                const payload = await response.json();
+                const properties = Array.isArray(payload) ? payload : payload.properties;
+
+                if (!properties || properties.length === 0) {
+                    listingsGrid.innerHTML = "<div class=\"empty-state\">No properties found.</div>";
+                    return;
+                }
+
+                listingsGrid.innerHTML = properties
+                    .map((property, index) => buildListingCard(property, index))
+                    .join("");
+            } catch (error) {
+                listingsGrid.innerHTML = "<div class=\"empty-state\">Unable to load listings yet. Make sure the API is running.</div>";
+                console.error("Failed to load listings", error);
+            }
+        };
+
+        document.addEventListener("DOMContentLoaded", loadListings);
+    </script>
+</body>
+</html>

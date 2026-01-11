@@ -1,14 +1,28 @@
 import express from "express";
 import { exec } from "child_process";
 import Property from "../models/Property.js";
-<<<<<<< HEAD
 import Holding from "../models/Holding.js";
 import Router from "express";
-=======
 import User from "../models/User.js";
->>>>>>> 6adaef1 (Added the investor content)
 
 const router = Router();
+
+// GET /properties - List available properties
+router.get("/", async (req, res) => {
+  const rawLimit = Number.parseInt(req.query.limit, 10);
+  const limit = Number.isNaN(rawLimit) ? 10 : Math.min(Math.max(rawLimit, 1), 50);
+
+  try {
+    const properties = await Property.find({})
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    res.json({ count: properties.length, properties });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch properties" });
+  }
+});
 
 // POST /properties/purchase - Purchase shares of a property
 router.post("/purchase", async (req, res) => {
@@ -51,7 +65,6 @@ router.post("/purchase", async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
 // GET /properties/portfolio/:userId
 router.get("/portfolio/:userId", async (req, res) => {
   try {
@@ -119,8 +132,6 @@ router.post("/sync/:id", async (req, res) => {
   }
 });
 
-export default router;
-=======
 // Handle share purchase
 router.post("/buy", async (req, res) => {
   try {
@@ -244,4 +255,3 @@ router.delete("/clear", async (req, res) => {
 });
 
 export default router;
->>>>>>> 6adaef1 (Added the investor content)
