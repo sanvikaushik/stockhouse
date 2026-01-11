@@ -6,9 +6,9 @@ import { connectDB } from "../../stockhouse-auth/src/db.js";
 import authRoutes from "../../stockhouse-auth/src/routes/auth.js";
 import propertyRoutes from "./routes/properties.js";
 
-import authRoutes from "../../stockhouse-auth/src/routes/auth.js";
+import authRoutes from "./routes/auth.js";
 import propertyRoutes from "./routes/properties.js";
-import walletRoutes from "../../stockhouse-auth/src/routes/wallet.js"; // new wallet routes
+import walletRoutes from "./routes/wallet.js"; // new wallet routes
 
 dotenv.config();
 
