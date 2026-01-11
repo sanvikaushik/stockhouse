@@ -183,6 +183,29 @@
                     <div id="searchResults" class="search-results"></div>
                 </div>
 
+                <!-- Rankings + Chat (above listings) -->
+                <div id="rankingsChatContainer" style="margin-bottom:24px; display:grid; grid-template-columns: 1fr 380px; gap:20px; align-items:start;">
+                    <div id="rankings">
+                        <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
+                            <h3 style="margin:0; font-size:18px;">Top 5 Lowest Risk</h3>
+                            <small style="color:var(--text-secondary);">and Top 5 Highest Risk</small>
+                        </div>
+                        <div style="display:flex; gap:16px;">
+                            <ul id="lowestRiskList" style="list-style:none; padding:0; margin:0; flex:1;"></ul>
+                            <ul id="highestRiskList" style="list-style:none; padding:0; margin:0; flex:1;"></ul>
+                        </div>
+                    </div>
+
+                    <div id="advisorChat" style="background:var(--secondary); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:12px;">
+                        <div style="font-weight:700; margin-bottom:8px;">StockHouse Advisor</div>
+                        <div id="chatMessages" style="height:260px; overflow:auto; padding:8px; background:rgba(255,255,255,0.02); border-radius:8px; margin-bottom:8px;"></div>
+                        <div style="display:flex; gap:8px;">
+                            <input id="chatInput" placeholder="Ask the advisor a question..." style="flex:1; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:rgba(255,255,255,0.02); color:var(--text-primary);" />
+                            <button id="chatSend" class="btn btn-primary">Send</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="investmentsGrid" class="investments-grid">
                     <!-- Populated by JavaScript -->
                 </div>
@@ -226,12 +249,11 @@
             "House Images/webaliser-_TPTXZd9mOo-unsplash.jpg"
         ].map(p => encodeURI(p));
 
-        // Extract a deterministic street key from an address: leading number + first street word (e.g. '123 Main St' -> '123_Main')
-        function extractStreetKey(address) {
+        // Extract leading street number from an address (e.g., '123 Main St' -> '123')
+        function extractStreetNumber(address) {
             if (!address || typeof address !== 'string') return null;
-            const m = address.trim().match(/^\s*(\d+)\s+([A-Za-z0-9\-]+)/);
-            if (!m) return null;
-            return `${m[1]}_${m[2].toLowerCase()}`;
+            const m = address.trim().match(/^\s*(\d+)\b/);
+            return m ? m[1] : null;
         }
 
         // Deterministic image selection based on a property key (id or address)
@@ -247,51 +269,6 @@
             return imagePaths[idx];
         }
         let userInvestments = [];
-        let investmentImageMap = {};
-
-        // djb2 hash returning non-negative integer
-        function djb2Hash(str) {
-            let hash = 5381;
-            for (let i = 0; i < str.length; i++) {
-                hash = ((hash << 5) + hash) + str.charCodeAt(i);
-                hash = hash & 0x7fffffff; // keep positive 32-bit
-            }
-            return Math.abs(hash);
-        }
-
-        // Assign unique images to an array of properties (by _id) deterministically.
-        // Returns map { propertyId: imageUrl }
-        function assignUniqueImagesToList(props) {
-            const map = {};
-            if (!Array.isArray(props) || props.length === 0) return map;
-
-            const slots = imagePaths.slice();
-            const used = new Set();
-
-            // create deterministic ordering
-            const list = props.map(p => ({ id: String(p._id || p.externalPropertyId || Math.random()), key: String(extractStreetKey(p.address) || p.address || p._id || '') }));
-            list.sort((a, b) => (a.key || '').localeCompare(b.key || ''));
-
-            for (const item of list) {
-                if (used.size < slots.length) {
-                    // pick start index from hash and find first unused
-                    let idx = djb2Hash(item.key || item.id) % slots.length;
-                    let tries = 0;
-                    while (used.has(idx) && tries < slots.length) { idx = (idx + 1) % slots.length; tries++; }
-                    if (!used.has(idx)) {
-                        map[item.id] = slots[idx];
-                        used.add(idx);
-                        continue;
-                    }
-                }
-
-                // fallback: generate a small SVG data URL unique per id
-                const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='700'><rect width='100%' height='100%' fill='#243b55'/><text x='50%' y='50%' font-size='40' fill='#fff' text-anchor='middle' dominant-baseline='middle'>${(item.key||item.id).replace(/</g,'').slice(0,30)}</text></svg>`;
-                map[item.id] = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-            }
-
-            return map;
-        }
 
         // Switch between tabs
         function switchTab(tabName) {
@@ -320,8 +297,8 @@
                 if (!response.ok) throw new Error('Failed to fetch properties');
                 const data = await response.json();
                 investmentProperties = Array.isArray(data) ? data : (data.properties || []);
-                // prepare unique image mapping for the current property set
-                investmentImageMap = assignUniqueImagesToList(investmentProperties);
+                // compute rankings and render
+                computeAndRenderRankings();
                 renderInvestmentCards();
             } catch (error) {
                 console.error('Error fetching investments:', error);
@@ -400,8 +377,11 @@
                                 </div>
                             `;
 
-                        const idKey = String(prop._id || prop.externalPropertyId || idx);
-                        let imageUrl = (prop.images && Array.isArray(prop.images) && prop.images.length > 0) ? prop.images[0] : (investmentImageMap[idKey] || getImageForKey(String(extractStreetKey(prop.address) || idKey)));
+                        const streetKey = extractStreetNumber(prop.address) || String(prop._id || prop.address || idx);
+                        let imageUrl = getImageForKey(String(streetKey));
+                        if (prop.images && Array.isArray(prop.images) && prop.images.length > 0) {
+                            imageUrl = prop.images[0];
+                        }
 
                         return `
                             <div class="investment-card" id="prop-${prop._id}">
@@ -624,13 +604,11 @@
             }
 
             // --- FIXED SECTION BELOW ---
-                // build a unique image map for holdings too to avoid reuse across holdings
-                const holdingsForMap = userInvestments.map(h => ({ _id: h.propertyId, address: h.address }));
-                const holdingImageMap = assignUniqueImagesToList(holdingsForMap);
-
                 grid.innerHTML = userInvestments.map((holding, idx) => {
-                const holdingIdKey = String(holding.propertyId || idx);
-                let imageUrl = (holding.images && Array.isArray(holding.images) && holding.images.length > 0) ? holding.images[0] : (holdingImageMap[holdingIdKey] || getImageForKey(String(extractStreetKey(holding.address) || holdingIdKey)));
+                let imageUrl = getImageForKey(String(holding.propertyId || holding.address || idx));
+                if (holding.images && Array.isArray(holding.images) && holding.images.length > 0) {
+                    imageUrl = holding.images[0];
+                }
                 const holdingId = holding.propertyId || idx;
                 return `
                     <div class="investment-card" id="holding-${holdingId}">
@@ -638,7 +616,7 @@
                         <div class="investment-header">
                             <div>
                                 <div class="investment-address">${holding.address}</div>
-                                <div class="investment-location">📍 ${holding.city || ''}${holding.city && holding.state ? ', ' : ''}${holding.state || ''}</div>
+                                <div class="investment-location">📍 ${holding.city}, ${holding.state}</div>
                             </div>
                             <div class="investment-status" style="background: rgba(59, 130, 246, 0.1); color: var(--accent);">
                                 Portfolio Holding
@@ -681,6 +659,105 @@
             
             fetchInvestmentProperties();
         }
+
+        // Compute risk scores and render top-5 lists
+        function computeAndRenderRankings() {
+            if (!Array.isArray(investmentProperties) || investmentProperties.length === 0) {
+                document.getElementById('lowestRiskList').innerHTML = '<li style="color:var(--text-secondary)">No properties yet</li>';
+                document.getElementById('highestRiskList').innerHTML = '';
+                return;
+            }
+
+            const maxVal = Math.max(...investmentProperties.map(p => Number(p.valuation) || 0), 1);
+
+            const scored = investmentProperties.map(p => {
+                const availablePercent = (Number(p.availableShares) / Number(p.totalShares)) * 100;
+                const soldPercentActual = 100 - (isFinite(availablePercent) ? availablePercent : 0);
+                const totalFundedPercent = Math.min(51 + soldPercentActual, 100);
+                const normVal = (Number(p.valuation) || 0) / maxVal;
+                // risk: higher when less funded and larger valuation
+                const risk = (100 - totalFundedPercent) * (0.5 + normVal);
+                return { id: String(p._id || p.externalPropertyId || ''), prop: p, risk, funded: totalFundedPercent };
+            });
+
+            const byLow = scored.slice().sort((a, b) => a.risk - b.risk).slice(0, 5);
+            const byHigh = scored.slice().sort((a, b) => b.risk - a.risk).slice(0, 5);
+
+            const lowHtml = byLow.map(s => `<li style="padding:6px 8px; border-radius:8px; background: rgba(255,255,255,0.02); margin-bottom:8px; cursor:pointer;" data-id="${s.id}"><strong>${s.prop.address}</strong><div style="font-size:12px;color:var(--text-secondary)">Risk ${s.risk.toFixed(1)} — ${s.prop.city || ''}${s.prop.city && s.prop.state ? ', ' : ''}${s.prop.state || ''}</div></li>`).join('');
+            const highHtml = byHigh.map(s => `<li style="padding:6px 8px; border-radius:8px; background: rgba(255,255,255,0.02); margin-bottom:8px; cursor:pointer;" data-id="${s.id}"><strong>${s.prop.address}</strong><div style="font-size:12px;color:var(--text-secondary)">Risk ${s.risk.toFixed(1)} — ${s.prop.city || ''}${s.prop.city && s.prop.state ? ', ' : ''}${s.prop.state || ''}</div></li>`).join('');
+
+            document.getElementById('lowestRiskList').innerHTML = lowHtml;
+            document.getElementById('highestRiskList').innerHTML = highHtml;
+
+            // attach click handlers to scroll to property card
+            document.querySelectorAll('#lowestRiskList li, #highestRiskList li').forEach(li => {
+                li.addEventListener('click', () => {
+                    const id = li.dataset.id;
+                    const el = document.getElementById('prop-' + id);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        el.classList.add('card-highlight');
+                        setTimeout(() => el.classList.remove('card-highlight'), 2000);
+                    }
+                });
+            });
+
+            // store small context for chat: top ids and short summaries
+            window.__stockhouse_ranking_context = {
+                topLow: byLow.map(s => ({ id: s.id, address: s.prop.address, city: s.prop.city, risk: Number(s.risk.toFixed(1)) })),
+                topHigh: byHigh.map(s => ({ id: s.id, address: s.prop.address, city: s.prop.city, risk: Number(s.risk.toFixed(1)) }))
+            };
+        }
+
+        // Chat UI helpers
+        function appendChatMessage(role, text) {
+            const box = document.getElementById('chatMessages');
+            const el = document.createElement('div');
+            el.style.marginBottom = '8px';
+            el.innerHTML = `<div style="font-size:12px;color:var(--text-secondary);">${role}</div><div style="padding:8px;border-radius:8px;background:${role==='You'?'rgba(59,130,246,0.12)':'rgba(255,255,255,0.02)'}">${text}</div>`;
+            box.appendChild(el);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const text = (input.value || '').trim();
+            if (!text) return;
+            appendChatMessage('You', text);
+            input.value = '';
+            const sendBtn = document.getElementById('chatSend');
+            sendBtn.disabled = true;
+            appendChatMessage('Advisor', '...');
+
+            try {
+                const payload = { message: text, context: window.__stockhouse_ranking_context || {} };
+                const res = await fetch('http://localhost:3001/api/chat', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                // remove the '...' placeholder
+                const box = document.getElementById('chatMessages');
+                if (box.lastChild) box.removeChild(box.lastChild);
+                appendChatMessage('Advisor', data.reply || 'Sorry, I could not generate a response.');
+            } catch (err) {
+                console.error('Chat send error', err);
+                const box = document.getElementById('chatMessages');
+                if (box.lastChild) box.removeChild(box.lastChild);
+                appendChatMessage('Advisor', 'Failed to contact advisor. Please try again later.');
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        // wire chat send button and enter key
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.id === 'chatSend') sendChatMessage();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && document.activeElement && document.activeElement.id === 'chatInput') {
+                e.preventDefault(); sendChatMessage();
+            }
+        });
 
         // Filter investments by address/city and show clickable results that scroll to the card
         function filterInvestments() {

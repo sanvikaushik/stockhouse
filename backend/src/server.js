@@ -5,6 +5,7 @@ import { connectDB } from "./db.js";
 import authRoutes from "./routes/auth.js";
 import propertyRoutes from "./routes/properties.js";
 import walletRoutes from "./routes/wallet.js"; // new wallet routes
+import chatRoutes from "./routes/chat.js";
 
 dotenv.config();
 
@@ -21,6 +22,9 @@ app.use(cors());
 // JSON parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// For chatbot route
+app.use('/api/chat', chatRoutes);
 
 // CORS - Enable cross-origin requests from frontend
 app.use(cors({
